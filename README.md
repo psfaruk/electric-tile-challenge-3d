@@ -15,6 +15,15 @@ you get zapped back to the start.
 
 **Repo:** https://github.com/psfaruk/electric-tile-challenge-3d
 
+## Screenshots
+
+Rendered automatically by CI (software GL) on every push — see the
+`Game-Screenshots` artifact for the latest.
+
+| Main menu (live 3D attract mode) | Gameplay — memorize phase (level 7) |
+|---|---|
+| ![Main menu](docs/images/menu.png) | ![Gameplay reveal](docs/images/gameplay.png) |
+
 ## Download / Build
 
 The APK is built by **GitHub Actions** on every push:
