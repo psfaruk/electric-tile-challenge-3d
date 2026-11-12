@@ -81,9 +81,13 @@ func setup(gp_ref) -> void:
         seq_label.visible = false
         root.add_child(seq_label)
 
-        # banner (full-screen centered)
+        # banner (upper-middle band, keeps floor + HUD legible)
         banner_label = Label.new()
-        banner_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+        banner_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+        banner_label.offset_left = -640
+        banner_label.offset_right = 640
+        banner_label.offset_top = 295
+        banner_label.offset_bottom = 430
         banner_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
         banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
         banner_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -189,7 +193,7 @@ func set_seq(show: bool, n: int, d: int) -> void:
         seq_label.text = "SEQ %d / %d" % [n, d]
 
 func flash_screen(color: Color) -> void:
-        flash_rect.color = Color(color.r, color.g, color.b, 0.5)
+        flash_rect.color = Color(color.r, color.g, color.b, 0.4)
         var tw := create_tween()
         tw.tween_property(flash_rect, "color:a", 0.0, 0.55)
 

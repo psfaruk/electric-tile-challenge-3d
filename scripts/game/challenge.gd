@@ -69,8 +69,8 @@ func setup(p_level: Dictionary, p_tiles: Dictionary, p_player, p_sparks, p_hud, 
                         "on_path": int(f[4]) == 1,
                         "safe_now": true,
                 })
-        mat_safe = _shared_mat(COL_SAFE, 2.2)
-        mat_danger = _shared_mat(COL_DANGER, 1.5)
+        mat_safe = _shared_mat(COL_SAFE, 1.6)
+        mat_danger = _shared_mat(COL_DANGER, 1.1)
 
 func _shared_mat(col: Color, energy: float) -> StandardMaterial3D:
         var m := StandardMaterial3D.new()
@@ -162,7 +162,7 @@ func _begin_reveal() -> void:
         AudioManager.play_sfx("tile_show", 1.0, -4.0)
 
 func _pulse_mats() -> void:
-        for pair in [[mat_safe, 2.7, 1.8], [mat_danger, 1.9, 1.1]]:
+        for pair in [[mat_safe, 1.9, 1.3], [mat_danger, 1.35, 0.9]]:
                 var m: StandardMaterial3D = pair[0]
                 var hi: float = pair[1]
                 var lo: float = pair[2]
