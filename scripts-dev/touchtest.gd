@@ -36,8 +36,18 @@ func _frames(n: int) -> void:
 func _secs(t: float) -> void:
         await get_tree().create_timer(t).timeout
 
-# A realistic tap: touch down, two frames, touch up.
+# Wait until any screen-transition veil has finished — mirrors a real user
+# who waits for the new screen to settle before tapping.
+func _settle() -> void:
+        var guard := 0
+        while ("_fading" in main and main._fading) and guard < 600:
+                await _frames(1)
+                guard += 1
+        await _frames(2)
+
+# A realistic tap: wait for any transition to settle, touch down, two frames, touch up.
 func _tap(pos: Vector2, idx := 0) -> void:
+        await _settle()
         var t := InputEventScreenTouch.new()
         t.index = idx
         t.position = pos
@@ -95,6 +105,7 @@ func run() -> void:
         # -- 1. HOW TO PLAY overlay (menu buttons) --
         var how_b := _btn("HOW TO PLAY")
         if _check(how_b != null, "menu: HOW TO PLAY button found"):
+                await _settle()
                 await _tap_button(how_b)
                 await _frames(6)
                 var got := _btn("GOT IT")
@@ -106,6 +117,7 @@ func run() -> void:
         # -- 2. SETTINGS screen --
         var set_b := _btn("SETTINGS")
         if _check(set_b != null, "menu: SETTINGS button found"):
+                await _settle()
                 await _tap_button(set_b)
                 await _frames(8)
                 _check(_screen_is("settings"), "menu: SETTINGS tap opens settings screen")

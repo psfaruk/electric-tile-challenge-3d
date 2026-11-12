@@ -44,19 +44,16 @@ func _ready() -> void:
 
 func goto(screen: String, params: Dictionary = {}) -> void:
         if _fading:
-                return
+                return  # a transition is already running; ignore duplicate programmatic calls
         _fading = true
-        _fade.mouse_filter = Control.MOUSE_FILTER_STOP
-        _fade.modulate.a = 1.0
+        _fade.modulate.a = 1.0  # purely cosmetic veil — never blocks input (filter stays IGNORE)
         _goto(screen, params)
         _reveal_fade()
 
 func _reveal_fade() -> void:
         var tw := create_tween()
-        tw.tween_property(_fade, "modulate:a", 0.0, 0.26)
+        tw.tween_property(_fade, "modulate:a", 0.0, 0.18)
         await tw.finished
-        if is_inside_tree():
-                _fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
         _fading = false
 
 func _goto(screen: String, params: Dictionary = {}) -> void:
