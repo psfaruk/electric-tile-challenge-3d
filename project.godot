@@ -1,0 +1,41 @@
+; Engine configuration file.
+; Generated for Electric Tile Challenge 3D (Godot 4.3-stable, pinned).
+
+config_version=5
+
+[application]
+
+config/name="Electric Tile Challenge 3D"
+config/description="A native 3D electric floor-tile challenge. Memorize the safe path, cross the grid, survive all 50 levels."
+config/version="1.0.0"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.3")
+config/icon="res://icon.svg"
+
+[autoload]
+
+GameState="*res://autoload/GameState.gd"
+AudioManager="*res://autoload/AudioManager.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/handheld/orientation=4
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+
+[physics]
+
+3d/default_gravity=16.0
+
+[rendering]
+
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
+textures/vram_compression/import_etc2_astc=true
+lights_and_shadows/directional_shadow/size=2048

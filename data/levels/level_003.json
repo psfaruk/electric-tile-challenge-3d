@@ -1,0 +1,47 @@
+{
+  "id": 3,
+  "name": "Neon Steps",
+  "mode": "memory",
+  "tier": 1,
+  "cols": 6,
+  "rows": 5,
+  "mem_time": 4.3,
+  "time_limit": 0.0,
+  "path": [
+    [
+      0,
+      3
+    ],
+    [
+      0,
+      2
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      0
+    ],
+    [
+      1,
+      0
+    ],
+    [
+      2,
+      0
+    ],
+    [
+      3,
+      0
+    ],
+    [
+      4,
+      0
+    ]
+  ],
+  "flippers": [],
+  "par_time": 7.5,
+  "gold_time": 5.2
+}

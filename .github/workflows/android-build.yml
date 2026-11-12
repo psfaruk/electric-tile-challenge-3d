@@ -1,0 +1,211 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Validate + Export Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Java 17 (APK signing)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Godot engine + export templates + Android SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+            ~/android-sdk
+          key: godot-4.3-android-sdk-v2
+
+      - name: Install Android SDK (build-tools for APK packaging + signing)
+        run: |
+          if [ ! -d "$HOME/android-sdk/build-tools" ]; then
+            mkdir -p "$HOME/android-sdk/cmdline-tools"
+            cd "$HOME/android-sdk/cmdline-tools"
+            wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q commandlinetools-linux-11076708_latest.zip
+            mv cmdline-tools latest
+            yes | "$HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$HOME/android-sdk" "platform-tools" "build-tools;34.0.0" > /dev/null
+          fi
+          ls "$HOME/android-sdk/build-tools/34.0.0/apksigner" >/dev/null && echo "apksigner present"
+
+      - name: Configure Godot editor settings (Java + Android SDK paths)
+        run: |
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.3.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/android_sdk_path = "$HOME/android-sdk"
+          EOF
+          cat "$HOME/.config/godot/editor_settings-4.3.tres"
+
+      - name: Download Godot 4.3-stable (headless Linux)
+        run: |
+          if [ ! -x "$HOME/godot/godot" ]; then
+            mkdir -p "$HOME/godot" && cd "$HOME/godot"
+            wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
+            unzip -q Godot_v4.3-stable_linux.x86_64.zip
+            mv Godot_v4.3-stable_linux.x86_64 godot
+            chmod +x godot
+          fi
+          "$HOME/godot/godot" --version
+
+      - name: Install Android export templates
+        run: |
+          TPL_DIR="$HOME/.local/share/godot/export_templates/4.3.stable"
+          if [ ! -d "$TPL_DIR" ] || [ -z "$(ls -A "$TPL_DIR" 2>/dev/null)" ]; then
+            mkdir -p "$TPL_DIR"
+            cd /tmp
+            wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
+            unzip -q Godot_v4.3-stable_export_templates.tpz -d tpx
+            mv tpx/templates/* "$TPL_DIR/"
+          fi
+          ls "$TPL_DIR" | head -n 6
+
+      - name: Import project resources
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          set -o pipefail
+          "$HOME/godot/godot" --headless --import --path "$GITHUB_WORKSPACE" 2>&1 | tee /tmp/import_log.txt
+          if grep -E "SCRIPT ERROR|Parse Error" /tmp/import_log.txt; then
+            echo "::error::Import stage reported script errors"
+            exit 1
+          fi
+
+      - name: Syntax-check every GDScript
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          fail=0
+          while IFS= read -r f; do
+            res="res://${f#./}"
+            out="$("$HOME/godot/godot" --headless --check-only --script "$res" --path "$GITHUB_WORKSPACE" 2>&1)" || true
+            # NOTE: --script mode does not register autoload identifiers (GameState/AudioManager);
+            # they compile fine at runtime/import/export, so filter those two known false positives.
+            if echo "$out" | grep -E "SCRIPT ERROR|Parse Error" | grep -v "Identifier not found: GameState" | grep -v "Identifier not found: AudioManager" | grep -q .; then
+              echo "::error file=$f::$out"
+              fail=1
+            fi
+          done < <(find . -name "*.gd" -not -path "./.godot/*")
+          if [ "$fail" -ne 0 ]; then exit 1; fi
+          echo "GDScript check: all scripts OK"
+
+      - name: Validate all 50 level configs
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          "$HOME/godot/godot" --headless --path "$GITHUB_WORKSPACE" --script res://scripts-dev/validate_levels.gd 2>&1 | tee /tmp/levels_log.txt
+          if grep -q "FAIL" /tmp/levels_log.txt; then
+            echo "::error::Level validation failed"
+            exit 1
+          fi
+
+      - name: Headless gameplay smoke test (level flow, win, zap, retry)
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          set -o pipefail
+          ETC_SMOKE=1 timeout 150 "$HOME/godot/godot" --headless --path "$GITHUB_WORKSPACE" 2>&1 | tee /tmp/smoke_log.txt
+          if grep -E "SCRIPT ERROR|USER ERROR" /tmp/smoke_log.txt; then
+            echo "::error::Smoke test reported script errors"
+            exit 1
+          fi
+          grep -q "SMOKE: ALL CHECKS PASSED" /tmp/smoke_log.txt || { echo "::error::Smoke test did not pass"; exit 1; }
+
+      - name: Export release APK (signed)
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p build
+          set -o pipefail
+          "$HOME/godot/godot" --headless --export-release "Android" "build/ElectricTileChallenge3D.apk" --path "$GITHUB_WORKSPACE" 2>&1 | tee /tmp/export_log.txt
+          if grep -E "SCRIPT ERROR|Parse Error" /tmp/export_log.txt; then
+            echo "::error::Export stage reported script errors"
+            exit 1
+          fi
+          if [ ! -s build/ElectricTileChallenge3D.apk ]; then
+            echo "::error::APK was not produced"
+            exit 1
+          fi
+          ls -lh build/
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ElectricTileChallenge3D-APK
+          path: build/*.apk
+          if-no-files-found: error
+
+      - name: Create GitHub Release (on version tags)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/*.apk
+          generate_release_notes: true
+          body: |
+            Native Android build of **Electric Tile Challenge 3D** (Godot 4.3).
+
+            - Install the APK on any Android 5.0+ device (arm64 / armeabi-v7a).
+            - Enable "install unknown apps" for your browser if asked.
+
+  screenshots:
+    name: Render screenshots (software GL, evidence)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install software GL + virtual display
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgl1 libglx-mesa0 libgl1-mesa-dri mesa-utils
+
+      - name: Download Godot 4.3-stable
+        run: |
+          if [ ! -x "$HOME/godot/godot" ]; then
+            mkdir -p "$HOME/godot" && cd "$HOME/godot"
+            wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
+            unzip -q Godot_v4.3-stable_linux.x86_64.zip
+            mv Godot_v4.3-stable_linux.x86_64 godot
+            chmod +x godot
+          fi
+
+      - name: Import + capture menu + gameplay screenshots
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          "$HOME/godot/godot" --headless --import --path "$GITHUB_WORKSPACE" || true
+          mkdir -p shots
+          xvfb-run -a -s "-screen 0 1280x720x24" \
+            env ETC_SHOT=menu ETC_SHOT_PATH="$PWD/shots/01_menu.png" \
+            timeout 90 "$HOME/godot/godot" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --rendering-method gl_compatibility --resolution 1280x720 || true
+          xvfb-run -a -s "-screen 0 1280x720x24" \
+            env ETC_SHOT=game ETC_LEVEL=7 ETC_SHOT_PATH="$PWD/shots/02_gameplay.png" \
+            timeout 90 "$HOME/godot/godot" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --rendering-method gl_compatibility --resolution 1280x720 || true
+          ls -la shots/ || true
+
+      - name: Upload screenshots artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Game-Screenshots
+          path: shots/*.png
+          if-no-files-found: warn
