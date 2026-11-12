@@ -10,6 +10,7 @@ const GameplayScreen := preload("res://scripts/ui/screens/gameplay.gd")
 var _screen: Node = null
 var _fade_layer: CanvasLayer
 var _fade: ColorRect
+var _fading := false
 
 func _ready() -> void:
         _fade_layer = CanvasLayer.new()
@@ -18,7 +19,10 @@ func _ready() -> void:
         _fade = ColorRect.new()
         _fade.color = Color(0.02, 0.03, 0.05)
         _fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-        _fade.mouse_filter = Control.MOUSE_FILTER_STOP
+        # CRITICAL FIX: the fade rect must never eat input while invisible.
+        # It previously started as MOUSE_FILTER_STOP, which swallowed every
+        # tap/click on the main menu on real devices (buttons appeared dead).
+        _fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
         _fade.modulate.a = 0.0
         _fade_layer.add_child(_fade)
 
@@ -29,13 +33,31 @@ func _ready() -> void:
                 _goto("gameplay", {"level": GameState.shot_level, "shot": true})
         elif GameState.smoke:
                 _goto("gameplay", {"level": 1, "smoke": true})
+        elif GameState.touchtest:
+                _goto("menu")
+                var tt := preload("res://scripts-dev/touchtest.gd").new()
+                tt.main = self
+                add_child(tt)
+                tt.run()
         else:
                 _goto("menu")
 
 func goto(screen: String, params: Dictionary = {}) -> void:
-        _fade_to(1.0)
+        if _fading:
+                return
+        _fading = true
+        _fade.mouse_filter = Control.MOUSE_FILTER_STOP
+        _fade.modulate.a = 1.0
         _goto(screen, params)
-        _fade_to(0.0)
+        _reveal_fade()
+
+func _reveal_fade() -> void:
+        var tw := create_tween()
+        tw.tween_property(_fade, "modulate:a", 0.0, 0.26)
+        await tw.finished
+        if is_inside_tree():
+                _fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        _fading = false
 
 func _goto(screen: String, params: Dictionary = {}) -> void:
         if _screen != null:
@@ -60,12 +82,6 @@ func _goto(screen: String, params: Dictionary = {}) -> void:
         s.main = self
         add_child(s)
         _screen = s
-
-func _fade_to(alpha: float, dur := 0.28) -> void:
-        _fade.mouse_filter = Control.MOUSE_FILTER_STOP if alpha > 0.5 else Control.MOUSE_FILTER_IGNORE
-        var tw := create_tween()
-        tw.tween_property(_fade, "modulate:a", alpha, dur)
-        await tw.finished
 
 # ---------------- automated screenshot capture (CI evidence) ----------------
 

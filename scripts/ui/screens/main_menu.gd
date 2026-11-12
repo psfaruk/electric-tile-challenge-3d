@@ -142,7 +142,7 @@ func _build_ui() -> void:
         menu.add_child(U.button("HOW TO PLAY", _how, false, Vector2(320, 60), 26))
         menu.add_child(U.button("EXIT", _exit, false, Vector2(320, 60), 26))
 
-        var ver := U.label("v1.0.0 — 50 levels — native 3D", 16, U.C.dim)
+        var ver := U.label("v1.0.1 — 50 levels — native 3D", 16, U.C.dim)
         _place(ver, Control.PRESET_BOTTOM_LEFT, 18, -44, 400, -14)
         root.add_child(ver)
 
@@ -181,6 +181,7 @@ func _exit() -> void:
 func _how() -> void:
         AudioManager.click()
         var layer := CanvasLayer.new()
+        layer.layer = 20  # above the menu UI layer (10) so the overlay truly covers it
         add_child(layer)
         var root := U.screen_root()
         root.mouse_filter = Control.MOUSE_FILTER_STOP

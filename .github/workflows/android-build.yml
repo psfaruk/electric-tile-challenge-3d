@@ -132,6 +132,20 @@ jobs:
           fi
           grep -q "SMOKE: ALL CHECKS PASSED" /tmp/smoke_log.txt || { echo "::error::Smoke test did not pass"; exit 1; }
 
+      - name: Touch-input E2E test (virtual display — every on-screen button must respond)
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          sudo apt-get update -qq > /dev/null
+          sudo apt-get install -y -qq xvfb libgl1 libglx-mesa0 libgl1-mesa-dri > /dev/null
+          set -o pipefail
+          ETC_TOUCHTEST=1 timeout 240 xvfb-run -a -s "-screen 0 1280x720x24" \
+            "$HOME/godot/godot" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --rendering-method gl_compatibility --resolution 1280x720 2>&1 | tee /tmp/touchtest_log.txt
+          grep -q "TOUCHTEST: ALL CHECKS PASSED" /tmp/touchtest_log.txt || { echo "::error::Touch-input test did not pass — buttons would be dead on devices"; exit 1; }
+          if grep -E "SCRIPT ERROR" /tmp/touchtest_log.txt; then
+            echo "::error::Touch-input test reported script errors"
+            exit 1
+          fi
+
       - name: Export release APK (signed)
         run: |
           cd "$GITHUB_WORKSPACE"
