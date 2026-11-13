@@ -200,3 +200,14 @@ touch E2E 39/39 at 16:9 AND 20:9 (Compatibility fallback path), zero script
 errors in all shot modes. Version 3.0.0 (versionCode 6). CI evidence shots
 now render at pinned HIGH quality (ETC_QUALITY=2) through the real
 Forward+ renderer via lavapipe.
+
+## Phase P8 — Release-verification fixes ✅
+VLM review of the final Forward+ evidence caught: (1) menu footer had a
+hardcoded "v2.0.1" — now reads `application/config/version` dynamically;
+(2) the victory screen was pitch black — new `arena.set_show_win(true)`
+celebration (key light 3.1→4.3, hero beam 0.60→0.95, LED glow 1.0→1.8,
+audience washes 0.4/0.55→0.85) fires on win, visual-only; (3) light-shaft
+shaders hit two Godot engine traps found by render-histogram evidence
+(unshaded additive ignores EMISSION — color must live in ALBEDO; fragment
+VERTEX is view-space — the fade now comes from a vertex-stage varying).
+VLM verdict on the final renders: APPROVED.

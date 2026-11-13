@@ -52,6 +52,11 @@ var _t := 0.0
 var _led_mat: StandardMaterial3D
 var _trim_mat: StandardMaterial3D
 var _crowd_banks: Array = []
+# victory "show win" state (visual celebration refs)
+var _key: SpotLight3D
+var _hero_mat: ShaderMaterial
+var _ledglow: OmniLight3D
+var _audience_washes: Array = []
 
 # ---------------- public API (unchanged contract) ----------------
 
@@ -66,6 +71,20 @@ func get_spawn() -> Vector3:
 
 func get_finish_z() -> float:
         return Grid.finish_z(rows)
+
+# "Show win" — the studio celebrates with the contestant: key light up, hero
+# beam brightens, LED wall + audience washes bloom. Visual only; no gameplay
+# state changes (called by gameplay.gd on victory).
+func set_show_win(on: bool) -> void:
+        if _key != null:
+                _key.light_energy = 4.3 if on else 3.1
+        if _hero_mat != null:
+                _hero_mat.set_shader_parameter("strength", 0.95 if on else 0.60)
+        if _ledglow != null:
+                _ledglow.light_energy = 1.8 if on else 1.0
+        for w in _audience_washes:
+                if w != null:
+                        w.light_energy = (0.85 if on else (0.55 if quality >= 2 else 0.4))
 
 func _process(delta: float) -> void:
         _t += delta
@@ -638,6 +657,7 @@ func _build_lights(mid_z: float, fin_z: float, grid_edge_x: float, H: float, sta
         key.position = Vector3(0, H - 1.3, mid_z + 0.5)
         key.look_at(Vector3(0, 0, mid_z - 1.5), Vector3.UP)
         add_child(key)
+        _key = key
 
         # the big show spot gets the hero beam — a wider, brighter shaft cone
         # (real volumetrics stay HIGH-only; this one guarantees the money shot)
@@ -650,7 +670,8 @@ func _build_lights(mid_z: float, fin_z: float, grid_edge_x: float, H: float, sta
                 hm.height = 5.4
                 hm.radial_segments = 24
                 hero.mesh = hm
-                hero.material_override = _shaft_material(0.60, 1.4, 5.4)
+                _hero_mat = _shaft_material(0.60, 1.4, 5.4)
+                hero.material_override = _hero_mat
                 hero.position = Vector3(0, H - 1.3 - 2.85, mid_z + 0.3)
                 add_child(hero)
 
@@ -677,7 +698,8 @@ func _build_lights(mid_z: float, fin_z: float, grid_edge_x: float, H: float, sta
                 add_child(apron)
 
         if quality >= 1:
-                # audience washes: one per bank (dim on MED, fuller on HIGH)
+                # audience washes: one per bank (dim on MED, fuller on HIGH) —
+                # refs kept for the victory "show win" celebration
                 for s in [-1, 1]:
                         var wash := OmniLight3D.new()
                         wash.name = "AudienceWash%d" % s
@@ -686,6 +708,7 @@ func _build_lights(mid_z: float, fin_z: float, grid_edge_x: float, H: float, sta
                         wash.omni_range = 9.0
                         wash.position = Vector3(s * (grid_edge_x + 3.0), 3.2, mid_z)
                         add_child(wash)
+                        _audience_washes.append(wash)
                 var ledglow := OmniLight3D.new()
                 ledglow.name = "LEDWallGlow"
                 ledglow.light_color = Color(1.0, 0.72, 0.35)
@@ -693,6 +716,7 @@ func _build_lights(mid_z: float, fin_z: float, grid_edge_x: float, H: float, sta
                 ledglow.omni_range = 8.0
                 ledglow.position = Vector3(0, 2.6, fin_z - 1.0)
                 add_child(ledglow)
+                _ledglow = ledglow
 
         # Floor pooling washes: dim warm practicals skimming the deck surface
         # so the rubber grain + tread read at gameplay camera distance (VLM

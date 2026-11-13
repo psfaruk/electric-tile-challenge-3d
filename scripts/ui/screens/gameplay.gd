@@ -237,6 +237,8 @@ func quit_to_menu() -> void:
 
 func _on_win(time_sec: float) -> void:
         _won = true
+        if arena != null:
+                arena.set_show_win(true)  # studio celebrates (visual only)
         var stars := 1
         if time_sec <= float(level.get("gold_time", 999.0)):
                 stars = 3

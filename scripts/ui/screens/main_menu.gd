@@ -225,7 +225,7 @@ func _build_ui() -> void:
         menu.add_child(U.button("HOW TO PLAY", _how, false, Vector2(320, 56), 24))
         menu.add_child(U.button("EXIT", _exit, false, Vector2(320, 56), 24))
 
-        var ver := U.label("v2.0.1 — 50 levels — native 3D", 16, U.C.dim)
+        var ver := U.label("v%s — 50 levels — native 3D" % ProjectSettings.get_setting("application/config/version"), 16, U.C.dim)
         _place(ver, Control.PRESET_BOTTOM_LEFT, 18, -44, 400, -14)
         root.add_child(ver)
 
