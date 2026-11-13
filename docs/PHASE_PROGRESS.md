@@ -136,3 +136,14 @@ solved (immutable tracks, REST TRS, tree parenting, IMMEDIATE transitions).
   palette warmed to studio graphite + tungsten with the electric-teal
   identity kept.
 Local gates: import 0 errors, 50/50 levels, smoke 8/8, touch E2E 39/39.
+
+## Phase D — Evidence pipeline + docs + v2.0.0 ✅
+- CI screenshots job: 5 real-engine captures per push (menu, full arena,
+  character close-up, SAFE+DANGER tile reveal, victory screen), preferring
+  the real Mobile (Vulkan) renderer via lavapipe with GL fallback.
+- Shot modes (`ETC_SHOT=game|character|tile|victory`) implemented through
+  the live game (teleports/camera choices reachable by any player).
+- `docs/GRAPHICS_OVERHAUL_REPORT.md` (honest acceptance table),
+  `ANDROID_PERFORMANCE_REPORT.md` (budgets + user measurement steps),
+  `ASSET_INVENTORY.md` updated with every v2 asset + license.
+- Version bumped to 2.0.0 (versionCode 4).

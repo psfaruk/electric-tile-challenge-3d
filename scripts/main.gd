@@ -30,7 +30,7 @@ func _ready() -> void:
         if GameState.shot_mode == "menu":
                 _goto("menu")
                 _capture_later(2.8)
-        elif GameState.shot_mode == "game":
+        elif GameState.shot_mode != "":
                 _goto("gameplay", {"level": GameState.shot_level, "shot": true})
         elif GameState.smoke:
                 _goto("gameplay", {"level": 1, "smoke": true})

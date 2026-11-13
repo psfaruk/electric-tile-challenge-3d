@@ -326,15 +326,59 @@ func _smoke_run() -> void:
 # ---------------- screenshot capture (CI evidence) ----------------
 
 func _shot_run() -> void:
-        # evidence framing: zoom out to the in-game maximum so the full studio
-        # set (audience, trusses, LED wall) is captured — a view any player can
-        # also reach with pinch-zoom; then a second close-up on the tiles
-        if cam_rig != null:
+        # evidence framing per ETC_SHOT mode (all reachable in real play):
+        #   game      -> zoomed-out maximum: full studio set
+        #   character -> front close-up of the contestant on the start pad
+        #   tile      -> steep view over the grid during reveal (safe + danger)
+        #   victory   -> play to win, capture the results screen
+        var mode := GameState.shot_mode
+        if mode == "character" and cam_rig != null:
+                cam_rig.mode = 1
+                cam_rig.dist = 2.6
+                cam_rig.pitch = 0.12
+                cam_rig.yaw = 0.35
+        elif mode == "tile" and cam_rig != null:
+                cam_rig.mode = 1
+                cam_rig.dist = 3.4
+                cam_rig.pitch = 1.02
+                cam_rig.yaw = 0.5
+                challenge.mem_speed = 4.0  # keep the reveal alive until capture
+                player.global_position = Grid.tile_center(Vector2i(1, 1), _cols) + Vector3(0, 0.05, 0)
+        elif mode == "victory":
+                await _shot_victory()
+                return
+        elif cam_rig != null:
                 cam_rig.zoom_input(3.2)
                 cam_rig.cam.fov = 74.0
-        await get_tree().create_timer(2.2).timeout
+        await get_tree().create_timer(2.4).timeout
         await RenderingServer.frame_post_draw
+        _capture_and_quit()
+
+func _capture_and_quit() -> void:
         var img := get_viewport().get_texture().get_image()
         if GameState.shot_path != "" and img != null:
                 img.save_png(GameState.shot_path)
         get_tree().quit(0)
+
+func _shot_victory() -> void:
+        challenge.mem_speed = 0.15
+        var frames := 0
+        while challenge.phase != CS.Phase.PLAY and frames < 2500:
+                await get_tree().physics_frame
+                frames += 1
+        for cell in challenge.path_cells:
+                player.global_position = Grid.tile_center(cell, _cols) + Vector3(0, 0.02, 0)
+                await get_tree().physics_frame
+                await get_tree().physics_frame
+        player.global_position = Vector3(0, 0.2, arena.get_finish_z() + 0.4)
+        var wframes := 0
+        while not _won and wframes < 400:
+                await get_tree().physics_frame
+                wframes += 1
+        frames = 0
+        while not hud.results_visible() and frames < 400:
+                await get_tree().create_timer(0.1).timeout
+                frames += 1
+        await get_tree().create_timer(0.4).timeout
+        await RenderingServer.frame_post_draw
+        _capture_and_quit()

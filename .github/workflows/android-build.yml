@@ -193,17 +193,17 @@ jobs:
             - Enable "install unknown apps" for your browser if asked.
 
   screenshots:
-    name: Render screenshots (software GL, evidence)
+    name: Render evidence screenshots (real engine output)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install software GL + virtual display
+      - name: Install software renderers (lavapipe Vulkan + Mesa GL) + virtual display
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb libgl1 libglx-mesa0 libgl1-mesa-dri mesa-utils
+          sudo apt-get install -y xvfb libgl1 libglx-mesa0 libgl1-mesa-dri mesa-utils mesa-vulkan-drivers
 
       - name: Download Godot 4.3-stable
         run: |
@@ -215,17 +215,41 @@ jobs:
             chmod +x godot
           fi
 
-      - name: Import + capture menu + gameplay screenshots
+      - name: Import + capture the full evidence set
         run: |
           cd "$GITHUB_WORKSPACE"
           "$HOME/godot/godot" --headless --import --path "$GITHUB_WORKSPACE" || true
           mkdir -p shots
-          xvfb-run -a -s "-screen 0 1280x720x24" \
-            env ETC_SHOT=menu ETC_SHOT_PATH="$PWD/shots/01_menu.png" \
-            timeout 90 "$HOME/godot/godot" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --rendering-method gl_compatibility --resolution 1280x720 || true
-          xvfb-run -a -s "-screen 0 1280x720x24" \
-            env ETC_SHOT=game ETC_LEVEL=7 ETC_SHOT_PATH="$PWD/shots/02_gameplay.png" \
-            timeout 90 "$HOME/godot/godot" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --rendering-method gl_compatibility --resolution 1280x720 || true
+          # Prefer the project's REAL renderer (Mobile/Vulkan via lavapipe) so
+          # screenshots match device output incl. skinned-mesh animation.
+          # Fall back to GL compatibility if Vulkan cannot initialize.
+          RD=""
+          if timeout 60 xvfb-run -a -s "-screen 0 1280x720x24" \
+               env ETC_SHOT=menu ETC_SHOT_PATH="$PWD/shots/01_menu.png" \
+               "$HOME/godot/godot" --path "$GITHUB_WORKSPACE" --resolution 1280x720 \
+               2>&1 | tee /tmp/vk_test.log && [ -s shots/01_menu.png ]; then
+            RD="vulkan"
+            echo "Using Vulkan (lavapipe) for evidence shots"
+          else
+            echo "Vulkan unavailable — falling back to GL compatibility"; rm -f shots/01_menu.png
+          fi
+          run_shot () {
+            MODE="$1"; LEVEL="$2"; OUT="$3"
+            if [ "$RD" = "vulkan" ]; then
+              xvfb-run -a -s "-screen 0 1280x720x24" \
+                env ETC_SHOT="$MODE" ETC_LEVEL="$LEVEL" ETC_SHOT_PATH="$PWD/shots/$OUT" \
+                timeout 120 "$HOME/godot/godot" --path "$GITHUB_WORKSPACE" --resolution 1280x720 || true
+            else
+              xvfb-run -a -s "-screen 0 1280x720x24" \
+                env ETC_SHOT="$MODE" ETC_LEVEL="$LEVEL" ETC_SHOT_PATH="$PWD/shots/$OUT" \
+                timeout 120 "$HOME/godot/godot" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --rendering-method gl_compatibility --resolution 1280x720 || true
+            fi
+          }
+          run_shot menu    7 01_menu.png           # main menu
+          run_shot game    7 02_full_arena.png      # full studio set (wide)
+          run_shot character 7 03_character.png     # contestant close-up
+          run_shot tile    7 04_tiles.png           # floor tiles: SAFE + DANGER states
+          run_shot victory 7 05_victory.png         # victory results screen
           ls -la shots/ || true
 
       - name: Upload screenshots artifact

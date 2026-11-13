@@ -68,3 +68,21 @@ All generated assets and source code in this repository are original works and
 are released under the repository's project license (CC0 for assets; the code
 follows the repository license). No third-party assets are bundled in any
 build artifact.
+
+---
+
+# Asset inventory — v2.0 graphics overhaul additions
+
+| Asset | Origin | License | Generator/Source |
+|---|---|---|---|
+| `assets/characters/human/human_male.glb` | Quaternius "Universal Animated Men (2019)", Male_Casual | **CC0** | downloaded from quaternius.com pack; normalized/exported by `scripts-dev/export_human_glb.py` (Blender headless, reproducible) |
+| `assets/textures/character/*` | original | CC0 (ours) | `scripts-dev/gen_textures_human.py` |
+| `assets/textures/pbr/*` (21 files) | original | CC0 (ours) | `scripts-dev/gen_textures_pbr.py` |
+| `assets/textures/*.png` (v1 set) | original | CC0 (ours) | `scripts-dev/gen_textures.py` (unchanged) |
+| Arena / tiles / cameras / crowd geometry | original | CC0 (ours) | built procedurally in `scripts/game/arena.gd`, `tile_field.gd` (runtime) |
+| Audio set | original | CC0 (ours) | `scripts-dev/gen_audio.py` (unchanged) |
+
+Everything in the APK remains fully licensed for distribution. No third-party
+asset with redistribution restrictions is included; the documented upgrade path
+to a licensed photorealistic human (Mixamo etc.) is optional and would be added
+by the repo owner as a private asset.
