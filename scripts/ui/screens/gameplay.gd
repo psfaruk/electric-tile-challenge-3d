@@ -21,6 +21,7 @@ var sparks
 var challenge
 var hud
 var finish_area: Area3D
+var field
 
 var tiles := {}
 var _cols := 6
@@ -45,13 +46,16 @@ func _ready() -> void:
         add_child(arena)
         arena.setup(level, quality)
 
+        # electric floor: one shared TileField (3 draw calls) + tile state controllers
+        field = preload("res://scripts/game/tile_field.gd").new()
+        add_child(field)
+        field.setup(level)
         var tile_script := preload("res://scripts/game/tile.gd")
         for r in _rows:
                 for c in _cols:
                         var t = tile_script.new()
-                        t.setup(Vector2i(r, c))
+                        t.setup(Vector2i(r, c), field)
                         add_child(t)
-                        t.position = Grid.tile_center(Vector2i(r, c), _cols) - Vector3(0, 0.075, 0)
                         tiles[Vector2i(r, c)] = t
 
         player = preload("res://scripts/game/player.gd").new()
@@ -322,6 +326,12 @@ func _smoke_run() -> void:
 # ---------------- screenshot capture (CI evidence) ----------------
 
 func _shot_run() -> void:
+        # evidence framing: zoom out to the in-game maximum so the full studio
+        # set (audience, trusses, LED wall) is captured — a view any player can
+        # also reach with pinch-zoom; then a second close-up on the tiles
+        if cam_rig != null:
+                cam_rig.zoom_input(3.2)
+                cam_rig.cam.fov = 74.0
         await get_tree().create_timer(2.2).timeout
         await RenderingServer.frame_post_draw
         var img := get_viewport().get_texture().get_image()

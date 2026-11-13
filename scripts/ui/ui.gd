@@ -5,17 +5,18 @@
 extends Object
 
 const C := {
-	"bg": Color(0.039, 0.063, 0.086),        # 0A1016 deep charcoal-teal
-	"panel": Color(0.071, 0.106, 0.145),     # 121B25
-	"panel2": Color(0.11, 0.16, 0.22),       # 1C2938
-	"text": Color(0.914, 0.957, 0.949),
-	"dim": Color(0.576, 0.651, 0.706),
-	"accent": Color(0.18, 0.902, 0.784),    # 2EE6C8 electric teal
-	"accent_dark": Color(0.075, 0.31, 0.28),
+	"bg": Color(0.039, 0.036, 0.043),        # warm charcoal studio
+	"panel": Color(0.09, 0.082, 0.075),     # warm graphite
+	"panel2": Color(0.13, 0.118, 0.105),     # 211E1B
+	"text": Color(0.95, 0.945, 0.92),
+	"dim": Color(0.62, 0.585, 0.545),
+	"accent": Color(0.18, 0.902, 0.784),    # 2EE6C8 electric teal (identity)
+	"accent_dark": Color(0.065, 0.27, 0.25),
 	"safe": Color(0.271, 0.973, 0.51),       # 45F882
 	"danger": Color(1.0, 0.302, 0.302),     # FF4D4D
 	"gold": Color(1.0, 0.773, 0.239),        # FFC53D
 	"orange": Color(1.0, 0.478, 0.161),     # FF7A29
+	"warm": Color(0.78, 0.56, 0.28),         # stage tungsten borders
 }
 
 static func flat(bg: Color, radius := 14, border_w := 0, border: Color = Color(0, 0, 0, 0)) -> StyleBoxFlat:
@@ -89,7 +90,7 @@ static func button(txt: String, cb: Callable, accent := false, min_size := Vecto
 static func panel(min_size := Vector2(420, 200)) -> Panel:
 	var p := Panel.new()
 	p.custom_minimum_size = min_size
-	p.add_theme_stylebox_override("panel", pad(flat(Color(0.05, 0.08, 0.12, 0.97), 18, 2, Color(0.18, 0.35, 0.33)), 18))
+	p.add_theme_stylebox_override("panel", pad(flat(Color(0.06, 0.055, 0.05, 0.97), 18, 2, Color(0.38, 0.28, 0.15)), 18))
 	return p
 
 # ---------------- input-space hardening ----------------

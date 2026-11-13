@@ -1,105 +1,133 @@
-# Tile — one electric floor tile. Visual-only (collision handled by the arena floor).
-# Own material per tile for individual feedback states; the challenge controller
-# can swap in SHARED materials during reveal phases (cheap + batched look).
-extends MeshInstance3D
-
-const TEX_FACE := preload("res://assets/textures/tile_face.png")
+# Tile — one electric floor tile: a state controller driving its LED edge
+# instance inside the shared TileField MultiMesh (3 draw calls for the whole
+# grid). Public state API is identical to v1 so challenge.gd logic is
+# unchanged; the visuals now live in the field (steel lip + smoked-glass top
+# + per-instance emissive LED ring).
+#
+# Edge states (colors/energies match v1 gameplay readability):
+#   NORMAL teal @0.16 | SAFE green (shared pulse) | DANGER red (shared pulse)
+#   WARNING amber pulse (flippers) | ACTIVATED green flash->settle
+#   FAILED red flash->cool | REVEAL safe/danger steady
+extends Node
 
 const COL_TEAL := Color(0.16, 0.9, 0.78)
 const COL_SAFE := Color(0.27, 0.97, 0.51)
 const COL_DANGER := Color(1.0, 0.30, 0.30)
-const COL_GOLD := Color(1.0, 0.77, 0.24)
 const COL_WARN := Color(1.0, 0.48, 0.16)
 
 var cell := Vector2i(-99, -99)
-var _own_mat: StandardMaterial3D
-var _tween: Tween
+var _field = null
+var _idx := -1
 
-func setup(tile_cell: Vector2i) -> void:
+var _hue: Color = COL_TEAL
+var _energy := 0.16
+var _target := 0.16
+var _rate := 4.0            # energy approach speed
+var _pulse_amp := 0.0       # warn-pulse amplitude (0 = off)
+var _pulse_base := 0.0
+var _phase2_at := -1.0      # scheduled second target (flash settle)
+var _phase2_target := 0.0
+var _t := 0.0
+
+func setup(tile_cell: Vector2i, field) -> void:
         cell = tile_cell
-        var bm := BoxMesh.new()
-        bm.size = Vector3(1.15, 0.15, 1.15)
-        mesh = bm
-        _own_mat = _make_own()
-        material_override = _own_mat
-        _dampen()
+        _field = field
+        _idx = field.idx_of(cell)
 
-static func _make_own() -> StandardMaterial3D:
-        var m := StandardMaterial3D.new()
-        m.albedo_texture = TEX_FACE
-        m.metallic = 0.45
-        m.roughness = 0.55
-        m.emission_enabled = true
-        m.emission_texture = TEX_FACE
-        m.emission = COL_TEAL
-        m.emission_energy_multiplier = 0.16
-        return m
+func _process(delta: float) -> void:
+        _t += delta
+        if _field == null or _idx < 0:
+                return
+        if _field.is_shared(_idx, 1) or _field.is_shared(_idx, 0):
+                return  # field-level pulse drives shared reveal modes
+        if _pulse_amp > 0.0:
+                _energy = _pulse_base + _pulse_amp * absf(sin(_t * 8.0))
+        else:
+                var d := _target - _energy
+                if absf(d) > 0.002:
+                        _energy += d * clampf(_rate * delta, 0.0, 1.0)
+                if _phase2_at > 0.0 and _t >= _phase2_at:
+                        _phase2_at = -1.0
+                        _target = _phase2_target
+        _field.set_edge_color(_idx, _hue * _energy)
 
-func set_shared(mat: Material) -> void:
-        if _tween != null and _tween.is_valid():
-                _tween.kill()
-        material_override = mat
+# ---------------- state control (v1 API) ----------------
+
+func set_shared(safe: bool) -> void:
+        _pulse_amp = 0.0
+        _phase2_at = -1.0
+        _field.set_shared_mode(_idx, 1 if safe else 0)
 
 func set_own() -> void:
-        material_override = _own_mat
-
-func _dampen() -> void:
-        _own_mat.emission = COL_TEAL
-        _own_mat.emission_energy_multiplier = 0.16
+        _field.set_shared_mode(_idx, -1)
 
 func reset_visual() -> void:
         set_own()
-        _dampen()
+        _hue = COL_TEAL
+        _energy = 0.16
+        _target = 0.16
+        _pulse_amp = 0.0
+        _phase2_at = -1.0
+        _field.set_edge_color(_idx, _hue * _energy)
 
-func flash_correct(index_in_path: int) -> void:
+func flash_correct(_index_in_path: int) -> void:
         set_own()
-        if _tween != null and _tween.is_valid():
-                _tween.kill()
-        _own_mat.emission = COL_SAFE
-        _own_mat.emission_energy_multiplier = 2.2
-        _tween = create_tween()
-        _tween.tween_property(_own_mat, "emission_energy_multiplier", 0.75, 0.55).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-        _tween.tween_interval(1.2)
-        _tween.tween_property(_own_mat, "emission_energy_multiplier", 0.22, 0.6)
+        _hue = COL_SAFE
+        _energy = 2.2
+        _target = 0.75
+        _rate = 3.5
+        _pulse_amp = 0.0
+        _phase2_at = _t + 1.75
+        _phase2_target = 0.22
 
 func flash_neutral() -> void:
         set_own()
-        if _tween != null and _tween.is_valid():
-                _tween.kill()
-        _own_mat.emission = COL_TEAL
-        _own_mat.emission_energy_multiplier = 1.4
-        _tween = create_tween()
-        _tween.tween_property(_own_mat, "emission_energy_multiplier", 0.16, 0.5)
+        _hue = COL_TEAL
+        _energy = 1.4
+        _target = 0.16
+        _rate = 3.2
+        _pulse_amp = 0.0
+        _phase2_at = -1.0
 
 func set_flip(safe: bool, warn: bool) -> void:
         set_own()
-        if _tween != null and _tween.is_valid():
-                _tween.kill()
+        _phase2_at = -1.0
         if warn:
-                _own_mat.emission = COL_WARN
-                _own_mat.emission_energy_multiplier = 0.75 + 0.65 * absf(sin(float(Time.get_ticks_msec()) * 0.008))
+                _hue = COL_WARN
+                _pulse_base = 0.75
+                _pulse_amp = 0.65
         elif safe:
-                _own_mat.emission = COL_SAFE
-                _own_mat.emission_energy_multiplier = 0.55
+                _hue = COL_SAFE
+                _pulse_amp = 0.0
+                _energy = 0.55
+                _target = 0.55
         else:
-                _own_mat.emission = COL_DANGER
-                _own_mat.emission_energy_multiplier = 0.4
+                _hue = COL_DANGER
+                _pulse_amp = 0.0
+                _energy = 0.4
+                _target = 0.4
 
 func mark_failed() -> void:
         set_own()
-        if _tween != null and _tween.is_valid():
-                _tween.kill()
-        _own_mat.emission = COL_DANGER
-        _own_mat.emission_energy_multiplier = 3.2
-        _tween = create_tween()
-        _tween.tween_property(_own_mat, "emission_energy_multiplier", 1.3, 1.8)
+        _hue = COL_DANGER
+        _energy = 3.2
+        _target = 1.3
+        _rate = 1.1
+        _pulse_amp = 0.0
+        _phase2_at = -1.0
 
 func reveal_safe() -> void:
         set_own()
-        _own_mat.emission = COL_SAFE
-        _own_mat.emission_energy_multiplier = 0.9
+        _hue = COL_SAFE
+        _energy = 0.9
+        _target = 0.9
+        _pulse_amp = 0.0
+        _field.set_edge_color(_idx, _hue * _energy)
 
 func reveal_danger() -> void:
         set_own()
-        _own_mat.emission = COL_DANGER
-        _own_mat.emission_energy_multiplier = 0.4
+        _hue = COL_DANGER
+        _energy = 0.4
+        _target = 0.4
+        _pulse_amp = 0.0
+        _field.set_edge_color(_idx, _hue * _energy)

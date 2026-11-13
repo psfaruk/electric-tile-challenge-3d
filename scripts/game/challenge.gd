@@ -11,7 +11,6 @@ enum Phase { READY, REVEAL, PLAY, DONE }
 
 const Grid := preload("res://scripts/game/grid.gd")
 const U := preload("res://scripts/ui/ui.gd")
-const TEX_FACE := preload("res://assets/textures/tile_face.png")
 
 const COL_SAFE := Color(0.27, 0.97, 0.51)
 const COL_DANGER := Color(1.0, 0.30, 0.30)
@@ -42,10 +41,6 @@ var _seq_i := 0
 var _seq_timer := 0.0
 var _beep_count := -1
 var _limit_beep := false
-var _pulses: Array = []
-
-var mat_safe: StandardMaterial3D
-var mat_danger: StandardMaterial3D
 
 func setup(p_level: Dictionary, p_tiles: Dictionary, p_player, p_sparks, p_hud, p_cam) -> void:
         level = p_level
@@ -69,16 +64,12 @@ func setup(p_level: Dictionary, p_tiles: Dictionary, p_player, p_sparks, p_hud, 
                         "on_path": int(f[4]) == 1,
                         "safe_now": true,
                 })
-        mat_safe = _shared_mat(COL_SAFE, 1.6)
-        mat_danger = _shared_mat(COL_DANGER, 1.1)
 
 func _shared_mat(col: Color, energy: float) -> StandardMaterial3D:
+        # retained for API compatibility; unused with the TileField renderer
         var m := StandardMaterial3D.new()
-        m.albedo_texture = TEX_FACE
-        m.metallic = 0.45
-        m.roughness = 0.55
+        m.albedo_color = col * 0.2
         m.emission_enabled = true
-        m.emission_texture = TEX_FACE
         m.emission = col
         m.emission_energy_multiplier = energy
         return m
@@ -151,34 +142,18 @@ func _begin_reveal() -> void:
                 for cellv in tiles:
                         var tc = tiles[cellv]
                         if path_set.has(cellv):
-                                tc.set_shared(mat_safe)
+                                tc.set_shared(true)
                         else:
-                                tc.set_shared(mat_danger)
-                _pulse_mats()
+                                tc.set_shared(false)
                 if mode == "timed":
                         hud.show_banner("CROSS BEFORE TIME RUNS OUT!", U.C.gold, 1.5)
                 else:
                         hud.show_banner("MEMORIZE THE PATH!", U.C.accent, 1.5)
         AudioManager.play_sfx("tile_show", 1.0, -4.0)
 
-func _pulse_mats() -> void:
-        for pair in [[mat_safe, 1.9, 1.3], [mat_danger, 1.35, 0.9]]:
-                var m: StandardMaterial3D = pair[0]
-                var hi: float = pair[1]
-                var lo: float = pair[2]
-                var tw := create_tween().set_loops()
-                tw.tween_property(m, "emission_energy_multiplier", hi, 0.38).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-                tw.tween_property(m, "emission_energy_multiplier", lo, 0.38).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-                _pulses.append(tw)
 
-func _kill_pulses() -> void:
-        for tw in _pulses:
-                if tw is Tween and tw.is_valid():
-                        tw.kill()
-        _pulses.clear()
 
 func _begin_play() -> void:
-        _kill_pulses()
         for cellv in tiles:
                 tiles[cellv].reset_visual()
         _apply_flipper_visuals()
@@ -229,6 +204,8 @@ func _correct(cell: Vector2i) -> void:
         if idx < 0:
                 idx = stepped.size()
         tiles[cell].flash_correct(idx)
+        sparks.arc(Grid.tile_center(cell, _cols) + Vector3(0, 0.18, 0),
+                        Grid.tile_center(cell, _cols) + Vector3(0, 0.85, 0), COL_SAFE)
         AudioManager.play_sfx("seq_note" if mode == "pattern" else "tile_good", 1.0 + idx * 0.045)
         hud.set_progress(stepped.size(), path_cells.size())
         AudioManager.haptic(15)
@@ -243,7 +220,6 @@ func on_finish_entered() -> void:
 
 func _win() -> void:
         phase = Phase.DONE
-        _kill_pulses()
         player.play_victory()
         AudioManager.play_sfx("win")
         AudioManager.haptic(60)
@@ -256,11 +232,13 @@ func _fail(reason: String, cell := Vector2i(-99, -99)) -> void:
         if phase == Phase.DONE:
                 return
         phase = Phase.DONE
-        _kill_pulses()
         player.play_zap()
         if tiles.has(cell):
                 tiles[cell].mark_failed()
         sparks.burst(player.global_position + Vector3(0, 0.45, 0), Color(1.0, 0.35, 0.2))
+        var zc: Vector3 = player.global_position + Vector3(0, 0.2, 0)
+        sparks.arc(zc, zc + Vector3(0.35, 1.1, 0.2), Color(1.0, 0.5, 0.22))
+        sparks.arc(zc, zc + Vector3(-0.3, 1.0, -0.25), Color(0.85, 0.95, 1.0))
         hud.flash_screen(U.C.danger)
         cam_rig.shake(1.2)
         AudioManager.play_sfx("zap")
@@ -318,7 +296,6 @@ func _update_flippers() -> void:
 # ---------------- restart (retry flow) ----------------
 
 func restart() -> void:
-        _kill_pulses()
         stepped.clear()
         next_idx = 0
         play_t = 0.0

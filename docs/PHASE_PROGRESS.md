@@ -108,3 +108,31 @@ state machine 5/5. `robot_model.gd` retained as documented fallback until CI
 confirms green on this commit.
 See `docs/asset_reports/character_report.md` for the engine-integration traps
 solved (immutable tracks, REST TRS, tree parenting, IMMEDIATE transitions).
+
+## Phase C — TV studio arena + hardware tiles + lighting + effects ✅ (local gates)
+- `arena.gd` fully rebuilt: rubber studio floor, recessed grid pit with hazard
+  curb + warm guide strips, concrete/steel walls with pilasters + warm LED
+  accent columns, curtain entry drape, ceiling with 3 steel trusses (rails +
+  diagonals + hanging fixture cans/lenses via MultiMesh), audience bleachers
+  with crowd billboards (4-row texture, self-lit) + barriers, a large LED
+  show wall (scrolling content + panel mullions + trim frame + corner towers),
+  steel start/finish decks with pad textures, a lit finish portal, two manned
+  broadcast cameras on tripods with tally lights, and a full stage light rig
+  (key spot with shadow, cool rim, apron/audience washes, truss spill, LED
+  glow) — with LOW/MEDIUM/HIGH budgets.
+- `tile_field.gd` (new): the whole tile floor renders in 3 draw calls —
+  glass tops, steel lips and per-instance LED edge rings (custom shader:
+  instance COLOR → EMISSION) + a grid-glow light echoing the reveal state.
+- `tile.gd` rewritten as a state controller with the exact v1 state API;
+  `challenge.gd` reveal pulses now run through shared instance modes.
+- `sparks.gd` v2: pooled ARC lightning bolts (jagged line meshes, strobing)
+  fire on every correct step and on zap failures.
+- `graphics.gd` v2: warm studio ambient, haze, softlight glow, filmic
+  exposure; LOW/MED/HIGH profiles preserved.
+- `camera_rig.gd`: FOV 70, dist 5.8 (fits the 1.8 m human); shot-mode wide
+  framing for full-set evidence captures.
+- Menu attract rebuilt as a mini studio (dark rubber floor, LED backdrop,
+  warm footlights, key-lit human contestant); title clipping fixed; UI
+  palette warmed to studio graphite + tungsten with the electric-teal
+  identity kept.
+Local gates: import 0 errors, 50/50 levels, smoke 8/8, touch E2E 39/39.

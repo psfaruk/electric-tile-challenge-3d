@@ -4,7 +4,10 @@ extends Node
 
 const U := preload("res://scripts/ui/ui.gd")
 const Graphics := preload("res://scripts/game/graphics.gd")
-const TEX_FLOOR := preload("res://assets/textures/floor_metal.png")
+const TEX_RUBBER := preload("res://assets/textures/pbr/rubber_mat_albedo.png")
+const TEX_RUBBER_N := preload("res://assets/textures/pbr/rubber_mat_normal.png")
+const TEX_RUBBER_R := preload("res://assets/textures/pbr/rubber_mat_rough.png")
+const TEX_LED := preload("res://assets/textures/pbr/led_walls_show_albedo.png")
 const TEX_TILE := preload("res://assets/textures/tile_face.png")
 
 var main
@@ -15,6 +18,7 @@ var _cam: Camera3D
 var _tiles: Array = []
 var _next_flash := 0.0
 var _robot
+var _led_menu_mat: StandardMaterial3D
 
 func _ready() -> void:
         AudioManager.play_music("menu")
@@ -51,12 +55,12 @@ func _buttons_with_text(node: Node, txt: String, out: Array = []) -> Array:
 
 func _build_attract() -> void:
         var floor_mat := StandardMaterial3D.new()
-        floor_mat.albedo_color = Color(0.4, 0.45, 0.52)
-        floor_mat.albedo_texture = TEX_FLOOR
+        floor_mat.albedo_texture = TEX_RUBBER
+        floor_mat.normal_enabled = true
+        floor_mat.normal_texture = TEX_RUBBER_N
+        floor_mat.roughness_texture = TEX_RUBBER_R
         floor_mat.uv1_triplanar = true
-        floor_mat.uv1_scale = Vector3(5, 5, 5)
-        floor_mat.metallic = 0.35
-        floor_mat.roughness = 0.55
+        floor_mat.uv1_scale = Vector3(4, 4, 4)
         var floor_mesh := MeshInstance3D.new()
         var fb := BoxMesh.new()
         fb.size = Vector3(13.0, 0.26, 9.0)
@@ -69,12 +73,12 @@ func _build_attract() -> void:
                 for c in 5:
                         var mat := StandardMaterial3D.new()
                         mat.albedo_texture = TEX_TILE
-                        mat.metallic = 0.45
-                        mat.roughness = 0.55
+                        mat.metallic = 0.3
+                        mat.roughness = 0.6
                         mat.emission_enabled = true
                         mat.emission_texture = TEX_TILE
                         mat.emission = Color(0.16, 0.9, 0.78)
-                        mat.emission_energy_multiplier = 0.18
+                        mat.emission_energy_multiplier = 0.14
                         var mi := MeshInstance3D.new()
                         var tb := BoxMesh.new()
                         tb.size = Vector3(1.15, 0.15, 1.15)
@@ -86,55 +90,84 @@ func _build_attract() -> void:
 
         _robot = preload("res://scripts/game/human_character.gd").new()
         add_child(_robot)
-        _robot.position = Vector3(1.35, 0.13, 0.75)
-        _robot.rotation.y = PI + 0.35
+        _robot.position = Vector3(-3.35, 0.13, 0.6)
+        _robot.rotation.y = PI + 0.2
         _robot.menu_attract = true
 
         # TV-studio key + fill on the contestant — the human wears dark clothes
         # and would otherwise vanish into the dim attract scene
         var key := SpotLight3D.new()
         key.light_color = Color(1.0, 0.93, 0.82)
-        key.light_energy = 3.0
+        key.light_energy = 3.5
         key.spot_range = 14.0
         key.spot_angle = 42.0
         key.spot_attenuation = 1.2
         key.shadow_enabled = int(GameState.settings.get("quality", 1)) >= 1
-        key.position = Vector3(1.35, 4.6, 3.0)
+        key.position = Vector3(-3.35, 4.4, 2.4)
         key.rotation_degrees = Vector3(-62, 0, 0)
         add_child(key)
         var fill := OmniLight3D.new()
         fill.light_color = Color(0.75, 0.85, 1.0)
         fill.light_energy = 0.55
         fill.omni_range = 9.0
-        fill.position = Vector3(-2.2, 2.2, 3.2)
+        fill.position = Vector3(1.6, 2.4, 3.0)
         add_child(fill)
 
         _cam_pivot = Node3D.new()
         add_child(_cam_pivot)
         _cam = Camera3D.new()
         _cam.fov = 64.0
-        _cam.position = Vector3(0, 3.8, 8.6)
+        _cam.position = Vector3(0, 3.1, 8.0)
         _cam_pivot.add_child(_cam)
 
-        var trim := StandardMaterial3D.new()
-        trim.albedo_color = Color(0.05, 0.14, 0.13)
-        trim.emission_enabled = true
-        trim.emission = Color(0.16, 0.92, 0.8)
-        trim.emission_energy_multiplier = 1.4
+        # LED show wall behind the tiles (the v2 studio backdrop)
+        var led := StandardMaterial3D.new()
+        led.albedo_color = Color(0.04, 0.04, 0.05)
+        led.emission_enabled = true
+        led.emission_texture = TEX_LED
+        led.albedo_texture = TEX_LED
+        led.emission = Color(1, 1, 1)
+        led.emission_energy_multiplier = 0.95
+        led.uv1_scale = Vector3(1.5, 0.8, 1)
+        var wall := MeshInstance3D.new()
+        var pb := PlaneMesh.new()
+        pb.size = Vector2(9.0, 2.6)
+        wall.mesh = pb
+        wall.material_override = led
+        wall.position = Vector3(0, 2.1, -4.6)
+        wall.rotation_degrees = Vector3(0, 180, 0)
+        add_child(wall)
+        _led_menu_mat = led
+        # warm footlight row along the tile patch edge
+        var warm := StandardMaterial3D.new()
+        warm.albedo_color = Color(0.05, 0.04, 0.03)
+        warm.emission_enabled = true
+        warm.emission = Color(1.0, 0.72, 0.35)
+        warm.emission_energy_multiplier = 1.1
         for s in [-1, 1]:
                 var strip := MeshInstance3D.new()
                 var sb := BoxMesh.new()
-                sb.size = Vector3(11.0, 0.07, 0.1)
+                sb.size = Vector3(11.0, 0.06, 0.09)
                 strip.mesh = sb
-                strip.material_override = trim
+                strip.material_override = warm
                 strip.position = Vector3(0, 0.2, s * 4.2)
                 add_child(strip)
+        # dim spill so the LED wall reads
+        var wall_glow := OmniLight3D.new()
+        wall_glow.light_color = Color(1.0, 0.72, 0.35)
+        wall_glow.light_energy = 0.5
+        wall_glow.omni_range = 8.0
+        wall_glow.position = Vector3(0, 2.2, -3.6)
+        add_child(wall_glow)
 
 func _process(delta: float) -> void:
         _t += delta
-        _orbit += delta * 0.13
+        _orbit += delta * 0.06
         _cam_pivot.rotation.y = _orbit
-        _cam.look_at(Vector3(-0.55, 0.85, 0.1), Vector3.UP)
+        _cam.look_at(Vector3(-0.6, 0.9, 0.2), Vector3.UP)
+        if _led_menu_mat != null:
+                _led_menu_mat.uv1_offset.x = fmod(_led_menu_mat.uv1_offset.x + delta * 0.02, 1.0)
+                _led_menu_mat.emission_energy_multiplier = 0.9 + 0.1 * sin(_t * 1.6)
         _next_flash -= delta
         if _next_flash <= 0.0:
                 _next_flash = 0.55 + randf() * 0.5
