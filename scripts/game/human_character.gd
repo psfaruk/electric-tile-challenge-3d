@@ -42,6 +42,7 @@ func _ready() -> void:
 func _build() -> void:
         _model_root = HUMAN_SCENE.instantiate()
         add_child(_model_root)
+        _upgrade_materials(_model_root)
 
         var ap: AnimationPlayer = _find_class(_model_root, "AnimationPlayer")
         # loop the locomotion + celebration clips (glTF import marks clips
@@ -104,6 +105,30 @@ func _find_class(n: Node, cls: String) -> Node:
                 if r != null:
                         return r
         return null
+
+# v3 photorealism: per-instance material upgrades (duplicated, never mutated
+# in the shared GLB resource). Subsurface scattering only takes effect on the
+# Forward+ renderer; on the Compatibility fallback the property is ignored.
+func _upgrade_materials(n: Node) -> void:
+        if n is MeshInstance3D:
+                var mi: MeshInstance3D = n
+                for i in mi.get_surface_override_material_count():
+                        var mat = mi.get_active_material(i)
+                        if mat is StandardMaterial3D:
+                                var sm: StandardMaterial3D = mat
+                                var tex_name := ""
+                                if sm.albedo_texture != null:
+                                        tex_name = sm.albedo_texture.resource_path.get_file()
+                                var dup: StandardMaterial3D = sm.duplicate()
+                                if tex_name.find("Skin") >= 0:
+                                        dup.subsurf_scatter_strength = 0.45
+                                        dup.roughness = 0.48
+                                elif tex_name.find("Hair") >= 0:
+                                        dup.subsurf_scatter_strength = 0.15
+                                        dup.roughness = 0.55
+                                mi.set_surface_override_material(i, dup)
+        for c in n.get_children():
+                _upgrade_materials(c)
 
 # ---------------- public control (API contract of the old robot) ----------------
 

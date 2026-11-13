@@ -42,6 +42,12 @@ func _ready() -> void:
         Graphics.build_environment(self, quality)
         Graphics.apply_viewport(get_viewport(), quality)
 
+        # broadcast post-processing (vignette + chromatic aberration + grain)
+        # between the 3D world and the HUD — skipped on LOW quality
+        var post_fx := preload("res://scripts/game/post_fx.gd").new()
+        add_child(post_fx)
+        post_fx.setup(quality)
+
         arena = preload("res://scripts/game/arena.gd").new()
         add_child(arena)
         arena.setup(level, quality)

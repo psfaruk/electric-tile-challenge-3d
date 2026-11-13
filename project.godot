@@ -7,9 +7,9 @@ config_version=5
 
 config/name="Electric Tile Challenge 3D"
 config/description="A native 3D electric floor-tile challenge. Memorize the safe path, cross the grid, survive all 50 levels."
-config/version="2.0.1"
+config/version="3.0.0"
 run/main_scene="res://scenes/main.tscn"
-config/features=PackedStringArray("4.3")
+config/features=PackedStringArray("4.3", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
@@ -35,7 +35,18 @@ pointing/emulate_touch_from_mouse=true
 
 [rendering]
 
-renderer/rendering_method="mobile"
-renderer/rendering_method.mobile="mobile"
+# v3 photorealism: Forward+ renderer everywhere (desktop CI, lavapipe shots,
+# and Android devices with Vulkan). Devices without Vulkan automatically fall
+# back to the Compatibility (GLES3) renderer via fallback_to_opengl3, so the
+# game still runs on old hardware (verified in engine source 4.3: platform/
+# android/display_server_android.cpp check_vulkan_global_context()).
+renderer/rendering_method="forward_plus"
+renderer/rendering_method.mobile="forward_plus"
+rendering/rendering_device/fallback_to_opengl3=true
 textures/vram_compression/import_etc2_astc=true
+# High-resolution shadow atlas: the show key spot is the single shadow caster —
+# give it a crisp 4096 atlas with high-quality soft filtering (Forward+).
+lights_and_shadows/positional_shadow/atlas_size=4096
+lights_and_shadows/positional_shadow/soft_shadow_filter_quality=4
 lights_and_shadows/directional_shadow/size=2048
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3

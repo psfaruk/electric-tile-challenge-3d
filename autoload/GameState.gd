@@ -33,6 +33,15 @@ func _ready() -> void:
         _read_env()
         _setup_input_map()
         load_all()
+        _apply_env_overrides()
+
+func _apply_env_overrides() -> void:
+        # CI evidence captures run at a pinned quality (ETC_QUALITY=2 renders
+        # the full photoreal pipeline: SDFGI/SSR/DOF/TAA) WITHOUT touching any
+        # player's saved settings — the override lives only in this process.
+        var q := OS.get_environment("ETC_QUALITY")
+        if q != "":
+                settings["quality"] = clampi(int(q), 0, 2)
 
 func _read_env() -> void:
         smoke = OS.get_environment("ETC_SMOKE") == "1"

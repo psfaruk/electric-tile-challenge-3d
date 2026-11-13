@@ -220,12 +220,13 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           "$HOME/godot/godot" --headless --import --path "$GITHUB_WORKSPACE" || true
           mkdir -p shots
-          # Prefer the project's REAL renderer (Mobile/Vulkan via lavapipe) so
-          # screenshots match device output incl. skinned-mesh animation.
+          # Prefer the project's REAL renderer (now Forward+ via lavapipe) so
+          # screenshots match device output incl. skinned-mesh animation,
+          # SDFGI GI, SSR reflections and volumetric fog.
           # Fall back to GL compatibility if Vulkan cannot initialize.
           RD=""
-          if timeout 60 xvfb-run -a -s "-screen 0 1280x720x24" \
-               env ETC_SHOT=menu ETC_SHOT_PATH="$PWD/shots/01_menu.png" \
+          if timeout 90 xvfb-run -a -s "-screen 0 1280x720x24" \
+               env ETC_SHOT=menu ETC_QUALITY=2 ETC_SHOT_PATH="$PWD/shots/01_menu.png" \
                "$HOME/godot/godot" --path "$GITHUB_WORKSPACE" --resolution 1280x720 \
                2>&1 | tee /tmp/vk_test.log && [ -s shots/01_menu.png ]; then
             RD="vulkan"
@@ -236,13 +237,14 @@ jobs:
           run_shot () {
             MODE="$1"; LEVEL="$2"; OUT="$3"
             if [ "$RD" = "vulkan" ]; then
+              # ETC_QUALITY=2: evidence at HIGH — SDFGI/SSR/DOF/TAA pipeline
               xvfb-run -a -s "-screen 0 1280x720x24" \
-                env ETC_SHOT="$MODE" ETC_LEVEL="$LEVEL" ETC_SHOT_PATH="$PWD/shots/$OUT" \
-                timeout 120 "$HOME/godot/godot" --path "$GITHUB_WORKSPACE" --resolution 1280x720 || true
+                env ETC_SHOT="$MODE" ETC_LEVEL="$LEVEL" ETC_QUALITY=2 ETC_SHOT_PATH="$PWD/shots/$OUT" \
+                timeout 150 "$HOME/godot/godot" --path "$GITHUB_WORKSPACE" --resolution 1280x720 || true
             else
               xvfb-run -a -s "-screen 0 1280x720x24" \
-                env ETC_SHOT="$MODE" ETC_LEVEL="$LEVEL" ETC_SHOT_PATH="$PWD/shots/$OUT" \
-                timeout 120 "$HOME/godot/godot" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --rendering-method gl_compatibility --resolution 1280x720 || true
+                env ETC_SHOT="$MODE" ETC_LEVEL="$LEVEL" ETC_QUALITY=2 ETC_SHOT_PATH="$PWD/shots/$OUT" \
+                timeout 150 "$HOME/godot/godot" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --rendering-method gl_compatibility --resolution 1280x720 || true
             fi
           }
           run_shot menu    7 01_menu.png           # main menu

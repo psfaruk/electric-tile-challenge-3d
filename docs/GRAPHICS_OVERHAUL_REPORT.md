@@ -57,3 +57,43 @@ v1.0.2 gameplay. Gameplay systems, level data, difficulty and progression are
 | 10 | APK builds | ✅ signed release export in CI (arm64 + v7a) |
 | 11 | Device performance documented | ⚠️ engineering budgets documented; real-device measurement = user step |
 | 12 | Screenshots demonstrate the real game | ✅ real-engine CI captures incl. Vulkan renderer |
+
+---
+
+# v3.0 Photorealism Push — Addendum
+
+**Scope:** close the three gaps left by v2.0 (mobile renderer, synthetic
+textures, no post-processing) while keeping every gameplay system untouched.
+
+| Gap (v2.0) | v3.0 resolution |
+|---|---|
+| Mobile renderer (no SDFGI/SSAO/SSR/TAA) | **Forward+ renderer** everywhere; devices without Vulkan auto-fall back to Compatibility (`fallback_to_opengl3`, verified in 4.3 engine source) |
+| All textures synthetic (Python-generated) | **Poly Haven CC0 photoscans** (rubber floor, brushed concrete, graphite painted steel, diamond-tread steel, velour drape) with full albedo/normal/ORM maps, VRAM-compressed with mipmaps |
+| No post-processing | **SSAO, volumetric stage fog, far DOF, glow, TAA, debanding** (quality-gated) + full-screen **vignette / chromatic aberration / film grain** pass (MED+) |
+| Character shading flat | Skin **subsurface scattering** 0.45 + hair SSS (Forward+ only) |
+
+**Quality gating (unchanged philosophy):** LOW keeps a fully playable
+feature-light profile (also the Compatibility-fallback look on old devices);
+MEDIUM adds SSAO + volumetric fog + glow + post FX; HIGH adds SDFGI + SSR +
+DOF + TAA. Verified: the game runs 39/39 touch E2E under gl_compatibility.
+
+**Texture import pipeline (new):** role-aware `.import` files are committed
+(albedo = sRGB VRAM, normal = linear normal-encoded, ORM = channel-packed
+linear; all mipmapped, ASTC/ETC2 on device). Default headless import would
+have produced lossless mip-less 2K textures (~270 MB VRAM) — caught and
+pinned before commit; verified by `scripts-dev/probe_textures.gd`.
+
+**Honest limitations:**
+1. The human character remains a clean CC0 rigged model (license ceiling for
+   redistributable scanned humans is unchanged) — SSS + tuned materials make
+   the most of it on Forward+.
+2. Local evidence screenshots still come from software rasterizers; CI
+   renders through lavapipe (real Forward+ Vulkan) at pinned HIGH quality,
+   but **on-device rendering is the final word** — measure on your phone.
+3. APK size grows (~+30 MB VRAM-compressed texture payload) — the cost of
+   2K photoscans; acceptable for a 3D game targeting Android 9+.
+
+**Local VLM art-direction scores under the software renderer:** 2.0 (v2
+baseline) -> 3 -> 5.5 -> 6.5/10 across three tuning passes; final verdict
+"SHIP". The device renderer additionally adds SDFGI bounce, SSAO contact
+shadows, SSR glass/tile reflections, volumetric light shafts and TAA.

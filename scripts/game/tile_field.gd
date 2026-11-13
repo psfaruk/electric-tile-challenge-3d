@@ -12,9 +12,9 @@ const Grid := preload("res://scripts/game/grid.gd")
 const TEX_GLASS := preload("res://assets/textures/pbr/tile_top_glass_albedo.png")
 const TEX_GLASS_N := preload("res://assets/textures/pbr/tile_top_glass_normal.png")
 const TEX_GLASS_R := preload("res://assets/textures/pbr/tile_top_glass_rough.png")
-const TEX_PAINT := preload("res://assets/textures/pbr/steel_painted_dark_albedo.png")
-const TEX_PAINT_N := preload("res://assets/textures/pbr/steel_painted_dark_normal.png")
-const TEX_PAINT_R := preload("res://assets/textures/pbr/steel_painted_dark_rough.png")
+const TEX_PAINT := preload("res://assets/textures/pbr/steel_painted_dark_albedo.webp")
+const TEX_PAINT_N := preload("res://assets/textures/pbr/steel_painted_dark_normal.webp")
+const TEX_PAINT_O := preload("res://assets/textures/pbr/steel_painted_dark_orm.webp")
 
 # Edge shader: instance color IS the emission (color already scaled by energy).
 const EDGE_SHADER := "
@@ -63,14 +63,18 @@ func setup(level: Dictionary) -> void:
 
         var lip_mat := StandardMaterial3D.new()
         lip_mat.albedo_texture = TEX_PAINT
-        lip_mat.albedo_color = Color(0.75, 0.78, 0.82)
+        lip_mat.albedo_color = Color(0.95, 0.97, 1.0)
         lip_mat.normal_enabled = true
         lip_mat.normal_texture = TEX_PAINT_N
-        lip_mat.normal_scale = 0.5
-        lip_mat.roughness_texture = TEX_PAINT_R
-        lip_mat.metallic = 0.25
+        lip_mat.normal_scale = 0.8
+        # photoscan ORM: AO(R) rough(G) metal(B) — painted steel is dielectric,
+        # so the map's metal channel (~0) drives metalness
+        lip_mat.orm_texture = TEX_PAINT_O
+        lip_mat.ao_enabled = true
+        lip_mat.roughness = 1.0
+        lip_mat.metallic = 1.0
         lip_mat.uv1_triplanar = true
-        lip_mat.uv1_scale = Vector3(0.5, 0.5, 0.5)
+        lip_mat.uv1_scale = Vector3(0.45, 0.45, 0.45)
 
         _edges_mat = ShaderMaterial.new()
         _edges_mat.shader = Shader.new()

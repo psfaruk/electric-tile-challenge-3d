@@ -4,9 +4,9 @@ extends Node
 
 const U := preload("res://scripts/ui/ui.gd")
 const Graphics := preload("res://scripts/game/graphics.gd")
-const TEX_RUBBER := preload("res://assets/textures/pbr/rubber_mat_albedo.png")
-const TEX_RUBBER_N := preload("res://assets/textures/pbr/rubber_mat_normal.png")
-const TEX_RUBBER_R := preload("res://assets/textures/pbr/rubber_mat_rough.png")
+const TEX_RUBBER := preload("res://assets/textures/pbr/rubber_mat_albedo.webp")
+const TEX_RUBBER_N := preload("res://assets/textures/pbr/rubber_mat_normal.webp")
+const TEX_RUBBER_O := preload("res://assets/textures/pbr/rubber_mat_orm.webp")
 const TEX_LED := preload("res://assets/textures/pbr/led_walls_show_albedo.png")
 const TEX_TILE := preload("res://assets/textures/tile_face.png")
 
@@ -24,6 +24,9 @@ func _ready() -> void:
         AudioManager.play_music("menu")
         var quality := int(GameState.settings.get("quality", 1))
         Graphics.build_environment(self, quality)
+        var post_fx := preload("res://scripts/game/post_fx.gd").new()
+        add_child(post_fx)
+        post_fx.setup(quality)
         _build_attract()
         _build_ui()
         _harden_wiring()
@@ -58,9 +61,11 @@ func _build_attract() -> void:
         floor_mat.albedo_texture = TEX_RUBBER
         floor_mat.normal_enabled = true
         floor_mat.normal_texture = TEX_RUBBER_N
-        floor_mat.roughness_texture = TEX_RUBBER_R
+        floor_mat.orm_texture = TEX_RUBBER_O  # photoscan AO/rough/metal
+        floor_mat.ao_enabled = true
+        floor_mat.albedo_color = Color(1.45, 1.45, 1.5)  # rubber grain reads in menu light
         floor_mat.uv1_triplanar = true
-        floor_mat.uv1_scale = Vector3(4, 4, 4)
+        floor_mat.uv1_scale = Vector3(0.35, 0.35, 0.35)  # ~45 cm rubber tiles
         var floor_mesh := MeshInstance3D.new()
         var fb := BoxMesh.new()
         fb.size = Vector3(13.0, 0.26, 9.0)

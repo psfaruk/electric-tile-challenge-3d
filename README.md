@@ -10,15 +10,18 @@ you get zapped back to the start.
 - Full 3D third-person character, physics, jump, camera rig (smart-follow + manual orbit)
 - Mobile-first touch controls: virtual joystick, jump button, drag-to-look, pinch zoom
 - Full audio: synthesized SFX + looping music, separate music/SFX volume settings
-- Low / Medium / High graphics presets
+- Low / Medium / High graphics presets — photoreal pipeline on capable
+  devices: Forward+ renderer, SDFGI global illumination, SSR reflections,
+  volumetric light shafts, SSAO, TAA, filmic post FX (vignette / chromatic
+  aberration / grain), real CC0 photoscan PBR materials
 - Level progression, 1–3 star ratings, best times, persistent save data
 
 **Repo:** https://github.com/psfaruk/electric-tile-challenge-3d
 
 ## Screenshots
 
-Rendered automatically by CI (software GL) on every push — see the
-`Game-Screenshots` artifact for the latest.
+Rendered automatically by CI on every push (Forward+ via lavapipe Vulkan,
+HIGH quality) — see the `Game-Screenshots` artifact for the latest.
 
 | Main menu (live 3D attract mode) | Gameplay — memorize phase (level 7) |
 |---|---|
@@ -32,8 +35,9 @@ The APK is built by **GitHub Actions** on every push:
    download `ElectricTileChallenge3D-APK`.
 2. Tagged releases (e.g. `v1.0.0`) publish the APK as a GitHub **Release** for
    one-tap download on your phone.
-3. Copy to your Android 5.0+ device, allow "install unknown apps" for your
-   browser/file manager, install, play.
+3. Copy to your Android 9.0+ (Vulkan) device, allow "install unknown apps"
+   for your browser/file manager, install, play. Older devices without Vulkan
+   still run the game via the automatic Compatibility (GLES3) fallback.
 
 See [docs/ANDROID_BUILD.md](docs/ANDROID_BUILD.md) for the full pipeline, the demo
 signing key discussion, and local-build instructions.

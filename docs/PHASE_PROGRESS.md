@@ -147,3 +147,56 @@ Local gates: import 0 errors, 50/50 levels, smoke 8/8, touch E2E 39/39.
   `ANDROID_PERFORMANCE_REPORT.md` (budgets + user measurement steps),
   `ASSET_INVENTORY.md` updated with every v2 asset + license.
 - Version bumped to 2.0.0 (versionCode 4).
+
+# Photorealism Push (v3.0) — Phase Progress
+
+## Phase P0 — Checkpoint + audit ✅
+Checkpoint tag `checkpoint/v2.0.1-pre-photoreal` + branch. Verified from
+Godot 4.3 docs/engine source: Forward+ IS supported for Android native
+exports (Android 9.0+ / Vulkan, `about/system_requirements.rst`), with
+automatic fallback to the Compatibility (GLES3) renderer on devices without
+Vulkan via `rendering/rendering_device/fallback_to_opengl3`
+(`platform/android/display_server_android.cpp`).
+
+## Phase P1 — Renderer migration ✅
+`project.godot`: Forward+ everywhere (desktop + Android), pinned
+`fallback_to_opengl3`, 4096 positional-shadow atlas + high soft-shadow
+filtering, `config/features += "Forward Plus"`.
+
+## Phase P2 — Photoscan material library ✅
+Poly Haven CC0 photoscans (rubber floor, brushed concrete, graphite painted
+steel, diamond-tread decks, velour drape) replace the synthetic sets as
+WebP sources with ORM packing; role-aware `.import` files committed (albedo
+sRGB / normal linear / ORM channel-packed, VRAM-compressed, mipmapped —
+verified by `scripts-dev/probe_textures.gd`). Synthetic generators kept as
+fallbacks; synthetic brushed steel still used for thin truss members.
+Bug caught by channel-mean sanity check before commit: desaturation must
+never touch normal/ORM maps (channel-packed data).
+
+## Phase P3 — Lighting & GI (Forward+) ✅
+`graphics.gd` v3: SDFGI (HIGH) with bounce feedback, SSAO (MED+), SSR on the
+glass tiles/steel (HIGH), volumetric stage fog with light shafts (MED+),
+far-DOF backdrop defocus (HIGH), glow + filmic grade, TAA (HIGH) + debanding.
+All gated by quality; Compatibility fallback ignores them safely.
+
+## Phase P4 — Post-processing FX ✅
+`scripts/game/post_fx.gd`: full-screen canvas shader (vignette + radial
+chromatic aberration + animated film grain) between world and UI, MED+,
+mouse-filter IGNORE (a full-screen rect can never eat taps — v1.0.1 lesson).
+
+## Phase P5 — Character material realism ✅
+Per-instance duplicated GLB materials: skin subsurface scattering 0.45
+(Forward+ only), hair SSS 0.15, tuned roughness.
+
+## Phase P6 — Material tuning via VLM art review ✅
+4 VLM passes (2.0 -> 3 -> 5.5 -> 6.5/10 under the software renderer):
+albedo lifts for floor/walls/tread, tread rescaled to real diamond pitch,
+rubber albedo gamma-lifted + floor normal boosted, 4 widened floor washes,
+curtain deepened to stage red. Final verdict: SHIP.
+
+## Phase P7 — Gates + release ✅ (local; CI re-verifies)
+Local: import 0 errors, all-GDScript syntax OK, 50/50 levels, smoke 8/8,
+touch E2E 39/39 at 16:9 AND 20:9 (Compatibility fallback path), zero script
+errors in all shot modes. Version 3.0.0 (versionCode 6). CI evidence shots
+now render at pinned HIGH quality (ETC_QUALITY=2) through the real
+Forward+ renderer via lavapipe.
