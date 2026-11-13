@@ -136,11 +136,13 @@ func _physics_process(_delta: float) -> void:
 func _input(ev: InputEvent) -> void:
         if player == null or cam_rig == null or hud == null:
                 return
+        var root := get_tree().root
         if ev is InputEventScreenTouch:
                 var t := ev as InputEventScreenTouch
                 if t.pressed:
-                        if not hud.is_ui_at(t.position) and not hud.joystick_active(t.index):
-                                _cam_touch[t.index] = t.position
+                        if not hud.is_ui_at(t.position) and not hud.joystick_active(t.index) \
+                                                and not hud.button_touch(t.index):
+                                _cam_touch[t.index] = U.norm_pos(t.position, root)
                 else:
                         _cam_touch.erase(t.index)
                         if _cam_touch.size() < 2:
@@ -148,7 +150,8 @@ func _input(ev: InputEvent) -> void:
         elif ev is InputEventScreenDrag:
                 if _cam_touch.has(ev.index):
                         var prev: Vector2 = _cam_touch[ev.index]
-                        _cam_touch[ev.index] = ev.position
+                        var pos: Vector2 = U.norm_pos(ev.position, root)
+                        _cam_touch[ev.index] = pos
                         if _cam_touch.size() >= 2:
                                 var pts: Array = _cam_touch.values()
                                 var d: float = (pts[0] - pts[1]).length()
@@ -156,7 +159,7 @@ func _input(ev: InputEvent) -> void:
                                         cam_rig.zoom_input((_prev_pinch - d) * 0.14)
                                 _prev_pinch = d
                         else:
-                                cam_rig.rotate_input(ev.position.x - prev.x, ev.position.y - prev.y)
+                                cam_rig.rotate_input(pos.x - prev.x, pos.y - prev.y)
         elif ev is InputEventMouseButton and ev.pressed:
                 if ev.button_index == MOUSE_BUTTON_WHEEL_UP:
                         cam_rig.zoom_input(-0.5)
@@ -190,7 +193,15 @@ func resume_pressed() -> void:
         get_tree().paused = false
         AudioManager.click()
 
+var _last_jump_ms := -100000
+
 func jump_pressed() -> void:
+        # Swallow the emulated-mouse echo of a press already answered by the
+        # raw-touch fast-path (both pathways can fire for the same tap).
+        var now := Time.get_ticks_msec()
+        if now - _last_jump_ms < 120:
+                return
+        _last_jump_ms = now
         if player != null:
                 player.request_jump()
 

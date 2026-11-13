@@ -29,6 +29,7 @@ var _results_reason: Label
 var _next_btn: Button
 var _stars_row: Array = []
 var _banner_tween: Tween
+var _btn_touch := {}  # touch index -> "jump" | "pause" (raw-touch fast-path)
 
 func setup(gp_ref) -> void:
         gp = gp_ref
@@ -205,18 +206,52 @@ func move_output() -> Vector2:
 func joystick_active(idx: int) -> bool:
         return joy.is_active_index(idx)
 
+func button_touch(idx: int) -> bool:
+        return _btn_touch.has(idx)
+
+# Rect hit-test that accepts both canvas and raw window pixel coordinates.
 func is_ui_at(pos: Vector2) -> bool:
         if _pause_root != null and _pause_root.visible:
                 return true
         if _results_root != null and _results_root.visible:
                 return true
-        if pause_btn.get_global_rect().grow(22).has_point(pos):
+        var root := get_tree().root
+        if U.hit(pause_btn.get_global_rect(), pos, 22.0, root):
                 return true
-        if jump_btn.get_global_rect().grow(14).has_point(pos):
+        if U.hit(jump_btn.get_global_rect(), pos, 14.0, root):
                 return true
-        if joy.get_global_rect().grow(26).has_point(pos):
+        if U.hit(joy.get_global_rect(), pos, 26.0, root):
                 return true
         return false
+
+# Raw-touch fast-path for the HUD buttons. Standard Button signals depend on
+# the engine touch->mouse emulation reaching the GUI layer; on some devices
+# that chain silently fails. This answers raw touch events directly, so the
+# JUMP and pause buttons keep working even when the GUI path is dead. Runs
+# BEFORE gameplay camera handling (reverse tree order) and claims the touch
+# index so the same touch can never become a camera drag.
+func _input(ev: InputEvent) -> void:
+        if not (ev is InputEventScreenTouch):
+                return
+        if gp == null or not is_instance_valid(gp):
+                return
+        if _pause_root != null and _pause_root.visible:
+                return
+        if _results_root != null and _results_root.visible:
+                return
+        var t := ev as InputEventScreenTouch
+        var root := get_tree().root
+        if t.pressed:
+                if jump_btn != null and jump_btn.is_visible_in_tree() and not jump_btn.disabled \
+                                and U.hit(jump_btn.get_global_rect(), t.position, 14.0, root):
+                        _btn_touch[t.index] = "jump"
+                        gp.jump_pressed()
+                elif pause_btn != null and pause_btn.is_visible_in_tree() \
+                                and U.hit(pause_btn.get_global_rect(), t.position, 22.0, root):
+                        _btn_touch[t.index] = "pause"
+                        gp.request_pause()
+        elif _btn_touch.has(t.index):
+                _btn_touch.erase(t.index)
 
 # ---------------- pause overlay ----------------
 

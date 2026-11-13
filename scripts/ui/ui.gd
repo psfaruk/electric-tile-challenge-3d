@@ -92,6 +92,27 @@ static func panel(min_size := Vector2(420, 200)) -> Panel:
 	p.add_theme_stylebox_override("panel", pad(flat(Color(0.05, 0.08, 0.12, 0.97), 18, 2, Color(0.18, 0.35, 0.33)), 18))
 	return p
 
+# ---------------- input-space hardening ----------------
+# Engine input events should carry CANVAS coordinates (window pixels already
+# transformed by the root viewport's stretch transform). Device reports and
+# certain driver/OS paths can deliver raw WINDOW pixels instead, which makes
+# every rect hit-test silently miss at any stretch scale != 1.0 (dead joystick
+# / dead buttons on real phones). These helpers accept either space.
+
+static func norm_pos(pos: Vector2, root: Viewport) -> Vector2:
+	if root == null:
+		return pos
+	var vr := root.get_visible_rect()
+	if vr.has_point(pos):
+		return pos  # already canvas coordinates
+	var p2: Vector2 = root.get_final_transform().affine_inverse() * pos
+	if vr.has_point(p2):
+		return p2  # was raw window pixels -> map to canvas
+	return pos  # outside either space (shouldn't happen) -> trust as-is
+
+static func hit(rect: Rect2, pos: Vector2, pad: float, root: Viewport) -> bool:
+	return rect.grow(pad).has_point(norm_pos(pos, root))
+
 static func screen_root() -> Control:
 	var r := Control.new()
 	r.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

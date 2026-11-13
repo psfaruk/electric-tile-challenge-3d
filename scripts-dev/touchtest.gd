@@ -187,6 +187,28 @@ func run() -> void:
                                 await _frames(1)
                                 lf += 1
 
+                        # -- 6b. JUMP via RAW touch with the emulated-mouse path DISABLED --
+                        # (device fallback: the fast-path must answer raw touches on its own)
+                        var jump_b2 := _btn("JUMP")
+                        if _check(jump_b2 != null, "hud: JUMP button found (raw-touch test)"):
+                                Input.set_emulate_mouse_from_touch(false)
+                                var y1: float = gp.player.global_position.y
+                                await _tap_button(jump_b2)
+                                var air2 := false
+                                var jf2 := 0
+                                while not air2 and jf2 < 120 and main._screen == gp and gp.player != null:
+                                        if not gp.player.is_on_floor() or gp.player.global_position.y > y1 + 0.05:
+                                                air2 = true
+                                                break
+                                        await _frames(1)
+                                        jf2 += 1
+                                _check(air2, "hud: JUMP answers raw touch with mouse emulation disabled (fast-path)")
+                                Input.set_emulate_mouse_from_touch(true)
+                                var lf2 := 0
+                                while gp.player != null and not gp.player.is_on_floor() and lf2 < 240 and main._screen == gp:
+                                        await _frames(1)
+                                        lf2 += 1
+
                 # -- 7. camera drag (empty screen area) --
                 var yaw0: float = gp.cam_rig.yaw
                 var vp_sz: Vector2 = get_tree().root.get_visible_rect().size
@@ -225,9 +247,18 @@ func run() -> void:
                                 _check(not get_tree().paused, "pause: RESUME unpauses the game")
 
                 # -- 9. virtual joystick --
+                # Deterministic + zap-proof walk: manual camera (no auto-align), yaw reset,
+                # player teleported onto a guaranteed-safe path cell, then walked BACKWARD
+                # (joystick pulled down) toward the safe start pad — the walk can never
+                # cross a danger tile regardless of the level's random path layout.
                 var joys := _find_by_script(get_tree().root, "joystick.gd")
                 if _check(joys.size() > 0, "hud: joystick control exists"):
                         var joy: Control = joys[0]
+                        var cam_mode0 := int(GameState.settings.get("cam_mode", 0))
+                        gp.cam_rig.mode = 1
+                        gp.cam_rig.yaw = 0.0
+                        gp.player.global_position = Grid.tile_center(gp.challenge.path_cells[0], gp._cols) + Vector3(0, 0.02, 0)
+                        await _frames(6)
                         var jc: Vector2 = joy.get_global_rect().get_center()
                         var p0: Vector3 = gp.player.global_position
                         var jt := InputEventScreenTouch.new()
@@ -239,21 +270,56 @@ func run() -> void:
                         for i in 12:
                                 var d := InputEventScreenDrag.new()
                                 d.index = 0
-                                d.position = _win(jc + Vector2(0, -i * 7.0))
-                                d.relative = Vector2(0, -7)
+                                d.position = _win(jc + Vector2(0, i * 7.0))
+                                d.relative = Vector2(0, 7)
                                 Input.parse_input_event(d)
                                 await _frames(1)
                         _check(joy.output.length() > 0.3, "joystick: output active while dragged (%.2f,%.2f)" % [joy.output.x, joy.output.y])
-                        await _frames(50)  # ~0.8s of walking
+                        await _frames(30)  # ~0.5s of safe backward walking
                         var jr := InputEventScreenTouch.new()
                         jr.index = 0
                         jr.pressed = false
-                        jr.position = _win(jc + Vector2(0, -84))
+                        jr.position = _win(jc + Vector2(0, 84))
                         Input.parse_input_event(jr)
                         await _frames(4)
                         var dist: float = gp.player.global_position.distance_to(p0)
                         _check(dist > 0.25, "joystick: player moves while joystick held (dist %.2f m)" % dist)
                         _check(joy.output == Vector2.ZERO, "joystick: output resets on release")
+
+                        # -- 9b. joystick driven by RAW MOUSE events (no touch synthesis) --
+                        # (desktop / mouse-mode device fallback path; same deterministic setup)
+                        Input.set_emulate_touch_from_mouse(false)
+                        gp.cam_rig.yaw = 0.0
+                        gp.player.global_position = Grid.tile_center(gp.challenge.path_cells[0], gp._cols) + Vector3(0, 0.02, 0)
+                        await _frames(6)
+                        var jc2: Vector2 = joy.get_global_rect().get_center()
+                        var p1: Vector3 = gp.player.global_position
+                        var mt := InputEventMouseButton.new()
+                        mt.button_index = MOUSE_BUTTON_LEFT
+                        mt.pressed = true
+                        mt.position = _win(jc2)
+                        Input.parse_input_event(mt)
+                        await _frames(2)
+                        for i in 12:
+                                var mm := InputEventMouseMotion.new()
+                                mm.button_mask = MOUSE_BUTTON_MASK_LEFT
+                                mm.position = _win(jc2 + Vector2(0, i * 7.0))
+                                mm.relative = Vector2(0, 7)
+                                Input.parse_input_event(mm)
+                                await _frames(1)
+                        _check(joy.output.length() > 0.3, "joystick: raw mouse events drive the joystick (fallback, %.2f,%.2f)" % [joy.output.x, joy.output.y])
+                        await _frames(30)
+                        var mr := InputEventMouseButton.new()
+                        mr.button_index = MOUSE_BUTTON_LEFT
+                        mr.pressed = false
+                        mr.position = _win(jc2 + Vector2(0, 84))
+                        Input.parse_input_event(mr)
+                        await _frames(4)
+                        var dist2: float = gp.player.global_position.distance_to(p1)
+                        _check(dist2 > 0.25, "joystick: player moves on mouse-driven joystick (dist %.2f m)" % dist2)
+                        _check(joy.output == Vector2.ZERO, "joystick: output resets after mouse release")
+                        Input.set_emulate_touch_from_mouse(true)
+                        gp.cam_rig.mode = cam_mode0
 
                 # -- 10. force a zap -> results overlay -> RETRY --
                 var danger := Vector2i(-9, -9)
