@@ -1,6 +1,11 @@
 # Godot generated files
 .godot/
 *.import
+# The character GLB needs its tuned import settings committed so every
+# fresh checkout / CI import keeps all pose-keyed animation channels:
+!assets/characters/human/human_male.glb.import
+# Embedded textures re-extracted by the glTF importer on every fresh import:
+assets/characters/human/human_male_*.png
 
 # Build output
 build/

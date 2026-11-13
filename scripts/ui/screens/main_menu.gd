@@ -84,16 +84,36 @@ func _build_attract() -> void:
                         add_child(mi)
                         _tiles.append({"mat": mat, "phase": randf() * TAU, "speed": 0.5 + randf(), "boost": 0.0})
 
-        _robot = preload("res://scripts/game/robot_model.gd").new()
+        _robot = preload("res://scripts/game/human_character.gd").new()
         add_child(_robot)
-        _robot.position = Vector3(-1.4, 0.13, 0.35)
-        _robot.rotation.y = PI + 0.25
+        _robot.position = Vector3(1.35, 0.13, 0.75)
+        _robot.rotation.y = PI + 0.35
+        _robot.menu_attract = true
+
+        # TV-studio key + fill on the contestant — the human wears dark clothes
+        # and would otherwise vanish into the dim attract scene
+        var key := SpotLight3D.new()
+        key.light_color = Color(1.0, 0.93, 0.82)
+        key.light_energy = 3.0
+        key.spot_range = 14.0
+        key.spot_angle = 42.0
+        key.spot_attenuation = 1.2
+        key.shadow_enabled = int(GameState.settings.get("quality", 1)) >= 1
+        key.position = Vector3(1.35, 4.6, 3.0)
+        key.rotation_degrees = Vector3(-62, 0, 0)
+        add_child(key)
+        var fill := OmniLight3D.new()
+        fill.light_color = Color(0.75, 0.85, 1.0)
+        fill.light_energy = 0.55
+        fill.omni_range = 9.0
+        fill.position = Vector3(-2.2, 2.2, 3.2)
+        add_child(fill)
 
         _cam_pivot = Node3D.new()
         add_child(_cam_pivot)
         _cam = Camera3D.new()
         _cam.fov = 64.0
-        _cam.position = Vector3(0, 3.4, 7.6)
+        _cam.position = Vector3(0, 3.8, 8.6)
         _cam_pivot.add_child(_cam)
 
         var trim := StandardMaterial3D.new()
@@ -114,7 +134,7 @@ func _process(delta: float) -> void:
         _t += delta
         _orbit += delta * 0.13
         _cam_pivot.rotation.y = _orbit
-        _cam.look_at(Vector3(-0.55, 0.5, 0.1), Vector3.UP)
+        _cam.look_at(Vector3(-0.55, 0.85, 0.1), Vector3.UP)
         _next_flash -= delta
         if _next_flash <= 0.0:
                 _next_flash = 0.55 + randf() * 0.5
@@ -141,13 +161,13 @@ func _build_ui() -> void:
         top.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
         top.offset_left = -420
         top.offset_right = 420
-        top.offset_top = 60
+        top.offset_top = 40
         top.alignment = BoxContainer.ALIGNMENT_CENTER
-        top.add_theme_constant_override("separation", 4)
+        top.add_theme_constant_override("separation", 2)
         root.add_child(top)
-        top.add_child(U.title("ELECTRIC TILE", 66, U.C.text))
-        top.add_child(U.title("CHALLENGE 3D", 44, U.C.accent))
-        var sub := U.label("MEMORIZE. CROSS. SURVIVE.", 20, U.C.dim)
+        top.add_child(U.title("ELECTRIC TILE", 60, U.C.text))
+        top.add_child(U.title("CHALLENGE 3D", 38, U.C.accent))
+        var sub := U.label("MEMORIZE. CROSS. SURVIVE.", 18, U.C.dim)
         sub.add_theme_constant_override("outline_size", 6)
         sub.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
         top.add_child(sub)
@@ -156,18 +176,18 @@ func _build_ui() -> void:
         menu.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
         menu.offset_left = -160
         menu.offset_right = 160
-        menu.offset_top = -200
-        menu.offset_bottom = 200
+        menu.offset_top = -118
+        menu.offset_bottom = 222
         menu.alignment = BoxContainer.ALIGNMENT_CENTER
-        menu.add_theme_constant_override("separation", 13)
+        menu.add_theme_constant_override("separation", 12)
         root.add_child(menu)
-        menu.add_child(U.button("PLAY", _play, true, Vector2(320, 66), 30))
-        menu.add_child(U.button("LEVEL SELECT", _levels, false, Vector2(320, 60), 26))
-        menu.add_child(U.button("SETTINGS", _settings, false, Vector2(320, 60), 26))
-        menu.add_child(U.button("HOW TO PLAY", _how, false, Vector2(320, 60), 26))
-        menu.add_child(U.button("EXIT", _exit, false, Vector2(320, 60), 26))
+        menu.add_child(U.button("PLAY", _play, true, Vector2(320, 62), 28))
+        menu.add_child(U.button("LEVEL SELECT", _levels, false, Vector2(320, 56), 24))
+        menu.add_child(U.button("SETTINGS", _settings, false, Vector2(320, 56), 24))
+        menu.add_child(U.button("HOW TO PLAY", _how, false, Vector2(320, 56), 24))
+        menu.add_child(U.button("EXIT", _exit, false, Vector2(320, 56), 24))
 
-        var ver := U.label("v1.0.1 — 50 levels — native 3D", 16, U.C.dim)
+        var ver := U.label("v2.0.0-dev — 50 levels — native 3D", 16, U.C.dim)
         _place(ver, Control.PRESET_BOTTOM_LEFT, 18, -44, 400, -14)
         root.add_child(ver)
 

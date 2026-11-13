@@ -87,3 +87,24 @@ export chain. Bug log (5 found → fixed → re-verified) in TEST_REPORT.md.
 
 A push to `main` produces a signed, installable APK via GitHub Actions with
 all quality gates passing; `v1.0.0` tag publishes the Release APK.
+
+---
+
+# Graphics Overhaul (v2.0) — Phase Progress
+
+## Phase A — Audit + asset acquisition ✅
+`docs/GRAPHICS_AUDIT.md` (full code audit, baseline evidence, plan).
+PBR texture library (21 tileable sets, `scripts-dev/gen_textures_pbr.py`).
+
+## Phase B — Realistic human character ✅ (local gates; CI re-verifies)
+`assets/characters/human/human_male.glb` (CC0 Quaternius male, 11 animations,
+31 joints, 1.8 m, embedded PBR micro-detail textures) integrated via
+`scripts/game/human_character.gd` — AnimationTree state machine with the exact
+public API of the old robot (set_moving/set_air/play_victory/play_zap/bounce).
+`player.gd` capsule re-fit to human scale; menu attract uses the human with a
+TV-style key/fill light and the title clipping bug is fixed.
+Local gates re-passed: import, 50-level validation, smoke 8/8, touch E2E 39/39,
+state machine 5/5. `robot_model.gd` retained as documented fallback until CI
+confirms green on this commit.
+See `docs/asset_reports/character_report.md` for the engine-integration traps
+solved (immutable tracks, REST TRS, tree parenting, IMMEDIATE transitions).
