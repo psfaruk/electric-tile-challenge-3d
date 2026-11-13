@@ -21,7 +21,7 @@ static func build_environment(parent: Node, quality: int) -> void:
         env.ambient_light_color = Color(0.2, 0.185, 0.17)
         # VLM pass 1: lifted so photoscan albedo detail reads under the rig
         # (dim-studio mood is kept by the key/rim contrast, not by crushing black)
-        env.ambient_light_energy = 1.3 if quality >= 1 else 0.85
+        env.ambient_light_energy = 1.45 if quality >= 1 else 0.85
         env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
         env.tonemap_exposure = 1.0 if quality >= 1 else 1.08
 

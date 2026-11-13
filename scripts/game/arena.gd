@@ -124,6 +124,43 @@ func _emissive(color: Color, energy := 1.6, tex: Texture2D = null) -> StandardMa
         m.roughness = 0.6
         return m
 
+# Soft additive "god-ray" cone: bright at the fixture, fading down and out
+# toward the cone rim. Unshaded + additive — works in every renderer.
+const SHAFT_SHADER := "
+shader_type spatial;
+render_mode blend_add, unshaded, cull_disabled, depth_draw_never;
+uniform vec4 tint : source_color = vec4(1.0, 0.93, 0.80, 0.30);
+uniform float strength : hint_range(0.0, 1.0) = 0.20;
+uniform float height = 4.6;
+varying float vT;
+void vertex() {
+        // VERTEX in the vertex() stage is OBJECT space (in fragment() it is
+        // VIEW space — using it there clamped the fade to 0 and the shafts
+        // rendered fully invisible; caught by an identical-histogram check).
+        vT = clamp(VERTEX.y / height + 0.5, 0.0, 1.0);  // top = 1, bottom = 0
+}
+void fragment() {
+        // Unshaded + additive: the added color is ALBEDO (EMISSION is ignored
+        // in unshaded mode — proven empirically: unwritten ALBEDO = white
+        // cones, ALBEDO=0 + EMISSION-only = invisible cones).
+        float fade = pow(vT, 2.1);                        // bright at the fixture mouth
+        float rim = 1.0 - abs(dot(NORMAL, normalize(VIEW)));
+        float soft = 0.45 + 0.55 * pow(rim, 0.6);         // soft cone edges
+        float a = fade * soft * tint.a * strength;
+        ALBEDO = tint.rgb * a * 4.0;                      // additive gain
+        ALPHA = 1.0;
+}"
+
+func _shaft_material(strength := 0.20, tint_alpha := 1.0, height := 4.6) -> ShaderMaterial:
+        var mat := ShaderMaterial.new()
+        var sh := Shader.new()
+        sh.code = SHAFT_SHADER
+        mat.shader = sh
+        mat.set_shader_parameter("tint", Color(1.0, 0.93, 0.80, 0.30 * tint_alpha))
+        mat.set_shader_parameter("strength", strength)
+        mat.set_shader_parameter("height", height)
+        return mat
+
 # ---------------- mesh helpers ----------------
 
 func _add_mesh(mesh: Mesh, mat: Material, pos: Vector3, rot := Vector3.ZERO) -> MeshInstance3D:
@@ -228,7 +265,7 @@ func _build_floor(gw: float, gl: float, start_z: float, fin_z: float, half_w: fl
         _add_mesh(_box(Vector3(half_w * 2.0 + 0.4, 0.26, room_len + 0.4)), floor_mat, Vector3(0, 0, mid_y))
 
         # recessed dark pit floor under the tile grid (visual depth)
-        var pit_mat := _plain(Color(0.055, 0.06, 0.07), 0.9, 0.25)
+        var pit_mat := _plain(Color(0.085, 0.09, 0.105), 0.9, 0.25)
         var edge_x := gw / 2.0 + 0.66
         var edge_z0 := 0.66
         var edge_z1 := -((rows - 1) * Grid.PITCH + 0.66)
@@ -367,6 +404,23 @@ func _build_ceiling_trusses(gw: float, half_w: float, H: float, z_near: float, z
         # fixture_tf / lens_tf arrays live
         _add_multimesh(_cyl(0.1, 0.26), _plain(Color(0.05, 0.05, 0.06), 0.5, 0.4), fixture_tf, "SpotFixtures")
         _add_multimesh(_cyl(0.085, 0.05), _emissive(Color(1.0, 0.9, 0.75), 2.2), lens_tf, "SpotLenses")
+
+        # Visible light shafts under every hanging fixture (MED+). Real
+        # volumetric fog (Forward+ HIGH) is the physical version; these soft
+        # additive cones guarantee READABLE beams in EVERY renderer — lavapipe
+        # CI captures, old GLES3 fallback phones, everything (VLM final pass).
+        if quality >= 1:
+                var shaft_mat := _shaft_material(0.55)
+                var shaft := CylinderMesh.new()
+                shaft.top_radius = 0.09
+                shaft.bottom_radius = 0.85
+                shaft.height = 4.6
+                shaft.radial_segments = 18
+                var shaft_tf: Array = []
+                for tf in fixture_tf:
+                        var p: Vector3 = tf.origin
+                        shaft_tf.append(Transform3D(Basis(), Vector3(p.x, p.y - 2.42, p.z)))
+                _add_multimesh(shaft, shaft_mat, shaft_tf, "LightShafts")
 
 # ---------------- audience bleachers ----------------
 
@@ -585,6 +639,21 @@ func _build_lights(mid_z: float, fin_z: float, grid_edge_x: float, H: float, sta
         key.look_at(Vector3(0, 0, mid_z - 1.5), Vector3.UP)
         add_child(key)
 
+        # the big show spot gets the hero beam — a wider, brighter shaft cone
+        # (real volumetrics stay HIGH-only; this one guarantees the money shot)
+        if quality >= 1:
+                var hero := MeshInstance3D.new()
+                hero.name = "KeyShaft"
+                var hm := CylinderMesh.new()
+                hm.top_radius = 0.30
+                hm.bottom_radius = 2.30
+                hm.height = 5.4
+                hm.radial_segments = 24
+                hero.mesh = hm
+                hero.material_override = _shaft_material(0.60, 1.4, 5.4)
+                hero.position = Vector3(0, H - 1.3 - 2.85, mid_z + 0.3)
+                add_child(hero)
+
         if quality >= 1:
                 # Rim: cool back light through the finish portal (no shadow)
                 var rim := SpotLight3D.new()
@@ -637,7 +706,7 @@ func _build_lights(mid_z: float, fin_z: float, grid_edge_x: float, H: float, sta
                                 var wash := OmniLight3D.new()
                                 wash.name = "FloorWash%d_%d" % [s, int(wz)]
                                 wash.light_color = Color(1.0, 0.9, 0.78)
-                                wash.light_energy = 0.5
-                                wash.omni_range = 8.5
+                                wash.light_energy = 0.65
+                                wash.omni_range = 10.0
                                 wash.position = Vector3(s * (grid_edge_x - 0.4), 1.15, wz)
                                 add_child(wash)
