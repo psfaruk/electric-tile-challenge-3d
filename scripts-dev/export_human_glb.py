@@ -167,6 +167,34 @@ adt.action = None
 arm.data.pose_position = 'REST'
 bpy.context.view_layer.update()
 
+# ---- 3b. bake the armature deform INTO the mesh at REST -------------------------
+# CRITICAL (v2 fix): the source mesh is authored in a T-pose while the rig's
+# edit-rest is the idle stance. glTF stores IBM = inverse(rest), so an
+# unbaked export ships T-pose vertices with idle binds -> identity skinning
+# displays the raw T-pose on every renderer. Baking the armature modifier at
+# REST writes idle-posed vertex data consistent with the binds; animations
+# (whose keys are rig-space poses) then deform correctly everywhere.
+# The source blend displays T-POSED at REST (its bind == edit-rest == idle,
+# mesh raw == T-pose; it only looks posed while an action is active). So we
+# must bake the deform UNDER THE IDLE ACTION, not at rest: apply the armature
+# modifier while Man_Idle drives the armature -> idle-posed vertex data that
+# is consistent with the idle binds the exporter writes.
+arm.data.pose_position = 'POSE'
+adt_bake = arm.animation_data if arm.animation_data else arm.animation_data_create()
+adt_bake.use_nla = False
+adt_bake.action = bpy.data.actions.get("Man_Idle")
+bpy.context.view_layer.update()
+bpy.ops.object.select_all(action='DESELECT')
+mesh_ob.select_set(True)
+bpy.context.view_layer.objects.active = mesh_ob
+arm_mods = [m for m in mesh_ob.modifiers if m.type == 'ARMATURE']
+if arm_mods:
+    bpy.ops.object.modifier_apply(modifier=arm_mods[0].name)
+    print("ARMATURE MODIFIER BAKED UNDER Man_Idle POSE — mesh matches binds")
+else:
+    print("WARN: no armature modifier found on BaseHuman")
+adt_bake.action = None
+
 # tidy: drop cameras/lights, purge orphans
 for ob in list(bpy.data.objects):
     if ob.type in {'CAMERA', 'LIGHT'}:

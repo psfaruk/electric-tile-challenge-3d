@@ -44,6 +44,8 @@
 
 ## Engine integration traps solved (documented for posterity)
 
+(v2.0.1 adds the bind/mesh bake — see section below)
+
 1. **`export_optimize_animation_size=False`** — Quaternius actions are
    pose-keyed (mostly constant channels); Blender's optimizer would drop the
    constant pose curves, leaving a 1-track animation and a T-pose body.
@@ -55,7 +57,15 @@
    anim player path from a parentless node silently fails.
 4. **`SWITCH_MODE_IMMEDIATE`** on all state-machine transitions — AT_END
    never fires from looping locomotion clips, freezing travel().
-5. **Facing:** the GLB faces +Z, so `FACING_OFFSET = -PI` converts the old
+5. **Bind/mesh consistency (v2.0.1):** the Quaternius blend displays
+   T-posed at Blender REST (its bind == edit-rest == idle, raw mesh == T-pose;
+   it only looks posed while an action is active). An unbaked glTF export
+   therefore ships T-pose vertices with idle inverse-binds — identity
+   skinning renders the raw T-pose on EVERY renderer (phones included).
+   Fixed by baking the armature modifier UNDER the Man_Idle pose during
+   export, so mesh data, binds and rest all agree on the idle stance
+   (mesh x-span 1.94 m -> 0.61 m, verified rendering on all backends).
+6. **Facing:** the GLB faces +Z, so `FACING_OFFSET = -PI` converts the old
    robot-facing contract (`atan2(v.x, v.z) + PI`) into "face = velocity".
 
 ## Local rendering caveat (honest evidence note)
