@@ -138,13 +138,24 @@ jobs:
           sudo apt-get update -qq > /dev/null
           sudo apt-get install -y -qq xvfb libgl1 libglx-mesa0 libgl1-mesa-dri > /dev/null
           set -o pipefail
-          ETC_TOUCHTEST=1 timeout 240 xvfb-run -a -s "-screen 0 1280x720x24" \
-            "$HOME/godot/godot" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --rendering-method gl_compatibility --resolution 1280x720 2>&1 | tee /tmp/touchtest_log.txt
-          grep -q "TOUCHTEST: ALL CHECKS PASSED" /tmp/touchtest_log.txt || { echo "::error::Touch-input test did not pass — buttons would be dead on devices"; exit 1; }
-          if grep -E "SCRIPT ERROR" /tmp/touchtest_log.txt; then
-            echo "::error::Touch-input test reported script errors"
-            exit 1
-          fi
+          # Run at TWO aspects: 16:9 desktop baseline AND 20:9 modern-phone
+          # landscape (2400x1080 -> 1600x720 canvas at 1.5x stretch) so the
+          # APK is validated against real device geometry, not only CI's
+          # exact-1280x720 window (where stretch scale is 1.0).
+          for RES in 1280x720 2400x1080; do
+            case "$RES" in
+              2400x1080) TMO=420 ;;
+              *) TMO=240 ;;
+            esac
+            echo "=== Touch-input E2E at $RES (timeout ${TMO}s) ==="
+            ETC_TOUCHTEST=1 timeout "$TMO" xvfb-run -a -s "-screen 0 ${RES}x24" \
+              "$HOME/godot/godot" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --rendering-method gl_compatibility --resolution "$RES" 2>&1 | tee "/tmp/touchtest_log_${RES}.txt"
+            grep -q "TOUCHTEST: ALL CHECKS PASSED" "/tmp/touchtest_log_${RES}.txt" || { echo "::error::Touch-input test did not pass at $RES — buttons would be dead on devices"; exit 1; }
+            if grep -E "SCRIPT ERROR" "/tmp/touchtest_log_${RES}.txt"; then
+              echo "::error::Touch-input test reported script errors at $RES"
+              exit 1
+            fi
+          done
 
       - name: Export release APK (signed)
         run: |

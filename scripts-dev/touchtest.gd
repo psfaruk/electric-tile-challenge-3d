@@ -45,18 +45,26 @@ func _settle() -> void:
                 guard += 1
         await _frames(2)
 
+# Input events carry WINDOW-pixel positions (exactly what a real Android device
+# delivers). Button rects are in canvas coordinates. Without this mapping the
+# taps only land correctly when the stretch scale is exactly 1.0 (1280x720),
+# which is why device-aspect screens were never actually validated.
+func _win(pos: Vector2) -> Vector2:
+        return get_tree().root.get_final_transform() * pos
+
 # A realistic tap: wait for any transition to settle, touch down, two frames, touch up.
 func _tap(pos: Vector2, idx := 0) -> void:
         await _settle()
+        var wpos := _win(pos)
         var t := InputEventScreenTouch.new()
         t.index = idx
-        t.position = pos
+        t.position = wpos
         t.pressed = true
         Input.parse_input_event(t)
         await _frames(2)
         var r := InputEventScreenTouch.new()
         r.index = idx
-        r.position = pos
+        r.position = wpos
         r.pressed = false
         Input.parse_input_event(r)
         await _frames(2)
@@ -186,20 +194,20 @@ func run() -> void:
                 var ct := InputEventScreenTouch.new()
                 ct.index = 0
                 ct.pressed = true
-                ct.position = cpos
+                ct.position = _win(cpos)
                 Input.parse_input_event(ct)
                 await _frames(2)
                 for i in 10:
                         var d := InputEventScreenDrag.new()
                         d.index = 0
-                        d.position = cpos + Vector2(i * 12.0, 0)
+                        d.position = _win(cpos + Vector2(i * 12.0, 0))
                         d.relative = Vector2(12, 0)
                         Input.parse_input_event(d)
                         await _frames(1)
                 var cr := InputEventScreenTouch.new()
                 cr.index = 0
                 cr.pressed = false
-                cr.position = cpos + Vector2(120, 0)
+                cr.position = _win(cpos + Vector2(120, 0))
                 Input.parse_input_event(cr)
                 await _frames(2)
                 _check(absf(gp.cam_rig.yaw - yaw0) > 0.02, "gameplay: drag on empty area rotates camera (yaw %.3f -> %.3f)" % [yaw0, gp.cam_rig.yaw])
@@ -225,13 +233,13 @@ func run() -> void:
                         var jt := InputEventScreenTouch.new()
                         jt.index = 0
                         jt.pressed = true
-                        jt.position = jc
+                        jt.position = _win(jc)
                         Input.parse_input_event(jt)
                         await _frames(2)
                         for i in 12:
                                 var d := InputEventScreenDrag.new()
                                 d.index = 0
-                                d.position = jc + Vector2(0, -i * 7.0)
+                                d.position = _win(jc + Vector2(0, -i * 7.0))
                                 d.relative = Vector2(0, -7)
                                 Input.parse_input_event(d)
                                 await _frames(1)
@@ -240,7 +248,7 @@ func run() -> void:
                         var jr := InputEventScreenTouch.new()
                         jr.index = 0
                         jr.pressed = false
-                        jr.position = jc + Vector2(0, -84)
+                        jr.position = _win(jc + Vector2(0, -84))
                         Input.parse_input_event(jr)
                         await _frames(4)
                         var dist: float = gp.player.global_position.distance_to(p0)

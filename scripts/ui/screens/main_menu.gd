@@ -22,7 +22,32 @@ func _ready() -> void:
         Graphics.build_environment(self, quality)
         _build_attract()
         _build_ui()
+        _harden_wiring()
         _wire_back()
+
+# Belt-and-braces: guarantee every menu button is actually wired to its
+# handler even if the factory-level connection in U.button() is ever lost.
+# is_connected() guards make sure no callback can ever fire twice.
+func _harden_wiring() -> void:
+        var wiring := {
+                "PLAY": _play,
+                "LEVEL SELECT": _levels,
+                "SETTINGS": _settings,
+                "HOW TO PLAY": _how,
+                "EXIT": _exit,
+        }
+        for txt in wiring:
+                var cb: Callable = wiring[txt]
+                for b in _buttons_with_text(self, txt):
+                        if not b.pressed.is_connected(cb):
+                                b.pressed.connect(cb)
+
+func _buttons_with_text(node: Node, txt: String, out: Array = []) -> Array:
+        if node is BaseButton and (node as BaseButton).text == txt:
+                out.append(node)
+        for c in node.get_children():
+                _buttons_with_text(c, txt, out)
+        return out
 
 func _build_attract() -> void:
         var floor_mat := StandardMaterial3D.new()

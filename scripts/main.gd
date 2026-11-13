@@ -24,6 +24,7 @@ func _ready() -> void:
         # tap/click on the main menu on real devices (buttons appeared dead).
         _fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
         _fade.modulate.a = 0.0
+        _fade.visible = false  # idle veil is not even drawn — it can never intercept anything
         _fade_layer.add_child(_fade)
 
         if GameState.shot_mode == "menu":
@@ -46,6 +47,7 @@ func goto(screen: String, params: Dictionary = {}) -> void:
         if _fading:
                 return  # a transition is already running; ignore duplicate programmatic calls
         _fading = true
+        _fade.visible = true
         _fade.modulate.a = 1.0  # purely cosmetic veil — never blocks input (filter stays IGNORE)
         _goto(screen, params)
         _reveal_fade()
@@ -54,6 +56,7 @@ func _reveal_fade() -> void:
         var tw := create_tween()
         tw.tween_property(_fade, "modulate:a", 0.0, 0.18)
         await tw.finished
+        _fade.visible = false
         _fading = false
 
 func _goto(screen: String, params: Dictionary = {}) -> void:
