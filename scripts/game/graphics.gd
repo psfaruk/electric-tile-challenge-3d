@@ -30,7 +30,7 @@ static func build_environment(parent: Node, quality: int) -> void:
                 env.sdfgi_enabled = true
                 env.sdfgi_use_occlusion = true
                 env.sdfgi_read_sky_light = false  # closed studio, no sky
-                env.sdfgi_bounce_feedback = 0.7   # warm bounce off the floor
+                env.sdfgi_bounce_feedback = 1.0  # VLM final: read the bounce
 
         # ---- SSAO: contact shadowing in the trusses/bleachers/under tiles ----
         if quality >= 1:
@@ -54,9 +54,10 @@ static func build_environment(parent: Node, quality: int) -> void:
         env.fog_density = 0.0045 if quality >= 2 else 0.006
         env.fog_light_color = Color(0.055, 0.05, 0.06)
         if quality >= 1:
-                # volumetric fog = visible light shafts from the key spot rig
+                # volumetric fog = visible light shafts from the key spot rig.
+                # VLM final pass: density ~2.5x — shafts must actually READ.
                 env.volumetric_fog_enabled = true
-                env.volumetric_fog_density = 0.012 if quality >= 2 else 0.008
+                env.volumetric_fog_density = 0.024 if quality >= 2 else 0.016
                 env.volumetric_fog_albedo = Color(0.88, 0.82, 0.74)
                 env.volumetric_fog_emission = Color(0.05, 0.045, 0.05)
                 env.volumetric_fog_emission_energy = 0.06

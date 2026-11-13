@@ -64,11 +64,11 @@ func setup(quality: int) -> void:
         mat.shader = sh
         if quality >= 2:
                 mat.set_shader_parameter("vignette_strength", 0.32)
-                mat.set_shader_parameter("aberration", 0.0020)
-                mat.set_shader_parameter("grain_amount", 0.038)
+                mat.set_shader_parameter("aberration", 0.0010)
+                mat.set_shader_parameter("grain_amount", 0.026)
         else:
                 mat.set_shader_parameter("vignette_strength", 0.24)
-                mat.set_shader_parameter("aberration", 0.0013)
-                mat.set_shader_parameter("grain_amount", 0.026)
+                mat.set_shader_parameter("aberration", 0.0007)
+                mat.set_shader_parameter("grain_amount", 0.018)
         rect.material = mat
         add_child(rect)

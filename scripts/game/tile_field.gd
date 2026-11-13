@@ -57,7 +57,8 @@ func setup(level: Dictionary) -> void:
         glass_mat.normal_texture = TEX_GLASS_N
         glass_mat.normal_scale = 0.6
         glass_mat.roughness_texture = TEX_GLASS_R
-        glass_mat.metallic = 0.1
+        glass_mat.roughness = 0.7   # glossier tops -> SSR sheen reads (VLM final)
+        glass_mat.metallic = 0.25
         glass_mat.uv1_triplanar = true
         glass_mat.uv1_scale = Vector3(1, 1, 1)
 

@@ -263,9 +263,9 @@ func _build_walls(half_w: float, z_near: float, z_far: float, H: float, mid_y: f
         # upper walls (~1.5 m pour period) — ORM-driven, map-metalled materials.
         # VLM pass 1: both lifted so panel seams/pores read in studio light.
         var paint := _pbr(TEX_PAINT, TEX_PAINT_N, null, Vector3(0.28, 0.28, 0.28), 1.0, 1.0, true, TEX_PAINT_O)
-        paint.albedo_color = Color(1.6, 1.62, 1.66)
+        paint.albedo_color = Color(1.7, 1.72, 1.76)
         var concrete := _pbr(TEX_CONCRETE, TEX_CONCRETE_N, null, Vector3(0.65, 0.65, 0.65), 1.0, 1.0, true, TEX_CONCRETE_O)
-        concrete.albedo_color = Color(1.55, 1.55, 1.58)
+        concrete.albedo_color = Color(1.7, 1.7, 1.73)
         concrete.normal_scale = 1.15  # pores/board-form shading read at distance
 
         # lower half: painted steel wainscot; upper half: concrete acoustics
@@ -580,6 +580,7 @@ func _build_lights(mid_z: float, fin_z: float, grid_edge_x: float, H: float, sta
         key.spot_angle = 40.0
         key.spot_attenuation = 1.1
         key.shadow_enabled = quality >= 1
+        key.light_volumetric_fog_energy = 1.6  # shafts must read (VLM final)
         key.position = Vector3(0, H - 1.3, mid_z + 0.5)
         key.look_at(Vector3(0, 0, mid_z - 1.5), Vector3.UP)
         add_child(key)
@@ -602,6 +603,7 @@ func _build_lights(mid_z: float, fin_z: float, grid_edge_x: float, H: float, sta
                 apron.light_color = Color(1.0, 0.82, 0.6)
                 apron.light_energy = 0.75
                 apron.omni_range = 6.5
+                apron.light_volumetric_fog_energy = 1.2
                 apron.position = Vector3(0, 3.4, start_z + 1.2)
                 add_child(apron)
 

@@ -121,10 +121,13 @@ func _upgrade_materials(n: Node) -> void:
                                         tex_name = sm.albedo_texture.resource_path.get_file()
                                 var dup: StandardMaterial3D = sm.duplicate()
                                 if tex_name.find("Skin") >= 0:
-                                        dup.subsurf_scatter_strength = 0.45
+                                        # VLM final pass: 0.45 blew the face
+                                        # out to white under the key light —
+                                        # 0.25 keeps the subsurface warmth
+                                        dup.subsurf_scatter_strength = 0.25
                                         dup.roughness = 0.48
                                 elif tex_name.find("Hair") >= 0:
-                                        dup.subsurf_scatter_strength = 0.15
+                                        dup.subsurf_scatter_strength = 0.08
                                         dup.roughness = 0.55
                                 mi.set_surface_override_material(i, dup)
         for c in n.get_children():
